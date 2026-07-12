@@ -1,0 +1,65 @@
+spring:
+  application:
+    name: marketplace-api
+
+  # Application runtime datasource: DML-only user (no DDL) — mysql-design §14.
+  datasource:
+    url: ${MARKETPLACE_DB_URL:jdbc:mysql://localhost:3306/archims_techcorner?useSSL=false&serverTimezone=UTC&characterEncoding=utf8&allowPublicKeyRetrieval=true}
+    username: ${MARKETPLACE_DB_USER:marketplace_app}
+    password: ${MARKETPLACE_DB_PASSWORD:app_dev_only}
+    hikari:
+      maximum-pool-size: 10
+      pool-name: marketplace-pool
+
+  jpa:
+    open-in-view: false          # avoid lazy loading in the view layer
+    hibernate:
+      # Schema is owned exclusively by Flyway; JPA never creates or alters it. 'none' (not 'validate')
+      # avoids brittle type-name comparisons (e.g. BOOLEAN vs BIT). Integration tests exercise the
+      # real migrated schema, which is the authoritative mapping check.
+      ddl-auto: none
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC         # store/read DATETIME(6) as UTC instants
+        format_sql: false
+
+  # Flyway runs before JPA using a SEPARATE migration identity (DDL) — mysql-design §14.
+  flyway:
+    enabled: true
+    url: ${MARKETPLACE_DB_URL:jdbc:mysql://localhost:3306/archims_techcorner?useSSL=false&serverTimezone=UTC&characterEncoding=utf8&allowPublicKeyRetrieval=true}
+    user: ${FLYWAY_DB_USER:marketplace_flyway}
+    password: ${FLYWAY_DB_PASSWORD:flyway_dev_only}
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+server:
+  port: 8080
+  error:
+    include-message: never       # errors go through the global handler, not the default page
+
+# Auth module configuration (bound to AuthProperties).
+auth:
+  jwt-secret: ${AUTH_JWT_SECRET:change_me_dev_only_min_32_bytes_long_secret_value}
+  access-token-ttl-seconds: ${AUTH_ACCESS_TOKEN_TTL_SECONDS:900}
+  refresh-token-ttl-seconds: ${AUTH_REFRESH_TOKEN_TTL_SECONDS:1209600}
+  cookie-secure: ${AUTH_COOKIE_SECURE:false}
+  cookie-domain: ${AUTH_COOKIE_DOMAIN:localhost}
+  allowed-origins: ${AUTH_ALLOWED_ORIGINS:http://localhost:3000}
+  lockout-threshold: 5
+  lockout-minutes: 15
+  verification-token-ttl-minutes: 1440   # 24h email verification
+  reset-token-ttl-minutes: 60            # 1h password reset
+
+mail:
+  from: ${MAIL_FROM:no-reply@archimstechcorner.local}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

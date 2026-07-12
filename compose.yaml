@@ -1,0 +1,79 @@
+# Local development runtime for Archim's TechCorner.
+# Production uses managed equivalents; this file has no HA claims (architecture §11).
+name: archims-techcorner
+
+services:
+  # --- MySQL 8.4: source of truth ---
+  mysql:
+    image: mysql:8.4
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+00:00
+      - --sql-mode=STRICT_ALL_TABLES,NO_ENGINE_SUBSTITUTION,ERROR_FOR_DIVISION_BY_ZERO
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_dev_only}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-archims_techcorner}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # Creates least-privilege app + flyway users on first boot (mysql-design §14)
+      - ./database/local-development/initialization:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-root_dev_only}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # --- Redis: temporary/accelerator only (never source of truth) ---
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "\"\"", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # --- MailHog: captures verification/reset emails locally (http://localhost:8025) ---
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+
+  # --- Java Spring Boot modular monolith (auth module) ---
+  marketplace-api:
+    build:
+      context: .
+      dockerfile: services/marketplace-api/Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      MARKETPLACE_DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-archims_techcorner}?useSSL=false&serverTimezone=UTC&characterEncoding=utf8&allowPublicKeyRetrieval=true
+      MARKETPLACE_DB_USER: ${MARKETPLACE_DB_USER:-marketplace_app}
+      MARKETPLACE_DB_PASSWORD: ${MARKETPLACE_DB_PASSWORD:-app_dev_only}
+      FLYWAY_DB_USER: ${FLYWAY_DB_USER:-marketplace_flyway}
+      FLYWAY_DB_PASSWORD: ${FLYWAY_DB_PASSWORD:-flyway_dev_only}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-change_me_dev_only_min_32_bytes_long_secret_value}
+      AUTH_ACCESS_TOKEN_TTL_SECONDS: ${AUTH_ACCESS_TOKEN_TTL_SECONDS:-900}
+      AUTH_REFRESH_TOKEN_TTL_SECONDS: ${AUTH_REFRESH_TOKEN_TTL_SECONDS:-1209600}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
+      AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-localhost}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      MAIL_HOST: ${MAIL_HOST:-mailhog}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@archimstechcorner.local}
+    ports:
+      - "8080:8080"
+
+volumes:
+  mysql-data:
