@@ -104,12 +104,11 @@ public class LoginService {
         user.setLockedUntil(null);
         userRepository.save(user);
 
-        boolean hasMfa = mfaService.isMfaEnabled(user.getId());
-        List<String> authorities = authorityService.resolve(user.getId()).grantedAuthorityStrings();
-        boolean requiresMfa = hasMfa || authorities.stream().anyMatch(role -> 
-                role.equals("ROLE_ADMIN") || role.equals("ROLE_SUPPORT") || 
-                role.equals("ROLE_FINANCE") || role.equals("ROLE_CONTENT"));
-
+        // Challenge only when the user has an ACTIVE (enrolled + verified) MFA method. Privileged roles
+        // are expected to enroll MFA, but we must NOT hard-lock a privileged user who has not enrolled
+        // yet: they need a session to reach the enrollment endpoint. (Mandatory-enrollment enforcement
+        // for privileged roles — blocking sensitive actions until MFA is active — is a follow-up.)
+        boolean requiresMfa = mfaService.isMfaEnabled(user.getId());
         if (requiresMfa) {
             String challengeToken = accessTokenService.issueMfaChallenge(user.getId());
             return new LoginResult(null, user.getPublicId(), user.getEmailDisplay(), user.isEmailVerified(), challengeToken);

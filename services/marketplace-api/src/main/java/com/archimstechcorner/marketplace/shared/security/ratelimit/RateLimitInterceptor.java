@@ -1,12 +1,13 @@
 package com.archimstechcorner.marketplace.shared.security.ratelimit;
 
+import com.archimstechcorner.marketplace.shared.error.ErrorCode;
+import com.archimstechcorner.marketplace.shared.error.JsonErrorWriter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -24,6 +25,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
 
     private final StringRedisTemplate redisTemplate;
     private final DefaultRedisScript<Long> rateLimitScript;
+    private final JsonErrorWriter errorWriter;
 
     // e.g., 5 requests per 60 seconds
     private static final int MAX_REQUESTS = 5;
@@ -44,9 +46,10 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             "end " +
             "return 1";
 
-    public RateLimitInterceptor(StringRedisTemplate redisTemplate) {
+    public RateLimitInterceptor(StringRedisTemplate redisTemplate, JsonErrorWriter errorWriter) {
         this.redisTemplate = redisTemplate;
         this.rateLimitScript = new DefaultRedisScript<>(LUA_SCRIPT, Long.class);
+        this.errorWriter = errorWriter;
     }
 
     @Override
@@ -63,9 +66,8 @@ public class RateLimitInterceptor implements HandlerInterceptor {
 
         if (result != null && result == 0L) {
             log.warn("Rate limit exceeded for IP {} on URI {}", clientIp, request.getRequestURI());
-            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            response.getWriter().write("{\"error\": \"Too many requests. Please try again later.\"}");
-            response.setContentType("application/json");
+            // Use the standard error envelope so clients get a consistent {error:{code,message,...}} shape.
+            errorWriter.write(response, ErrorCode.RATE_LIMITED, "Too many requests. Please try again later.");
             return false;
         }
 

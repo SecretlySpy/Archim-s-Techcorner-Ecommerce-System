@@ -62,6 +62,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_GET).permitAll()
                         .requestMatchers(HttpMethod.POST, PUBLIC_POST).permitAll()
+                        // Public catalog browsing (guests). Only GET; write endpoints keep @PreAuthorize.
+                        // Product detail returns published (ACTIVE) products only — enforced in the service.
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/catalog/categories",
+                                "/api/v1/catalog/brands",
+                                "/api/v1/catalog/products/*").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(authEntryPoint)

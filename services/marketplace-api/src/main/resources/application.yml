@@ -2,6 +2,11 @@ spring:
   application:
     name: marketplace-api
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
   # Application runtime datasource: DML-only user (no DDL) — mysql-design §14.
   datasource:
     url: ${MARKETPLACE_DB_URL:jdbc:mysql://localhost:3306/archims_techcorner?useSSL=false&serverTimezone=UTC&characterEncoding=utf8&allowPublicKeyRetrieval=true}
@@ -53,6 +58,14 @@ auth:
 
 mail:
   from: ${MAIL_FROM:no-reply@archimstechcorner.local}
+
+# Optional bootstrap administrator (dev convenience). No-op unless enabled AND a password is set.
+app:
+  bootstrap:
+    admin:
+      enabled: ${APP_BOOTSTRAP_ADMIN_ENABLED:false}
+      email: ${APP_BOOTSTRAP_ADMIN_EMAIL:admin@archims.local}
+      password: ${APP_BOOTSTRAP_ADMIN_PASSWORD:}
 
 springdoc:
   swagger-ui:

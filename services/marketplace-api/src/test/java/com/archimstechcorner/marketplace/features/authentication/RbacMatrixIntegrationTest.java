@@ -26,6 +26,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -67,7 +68,7 @@ class RbacMatrixIntegrationTest {
 
     @ParameterizedTest
     @CsvSource({
-            "users.role.assign, 204",     // Granted -> Should allow (or 404/etc if entity missing, but not 403)
+            "users.role.assign, 404",     // Granted -> Should allow (returns 404 because entity is missing)
             "some.other.permission, 403"  // Denied -> Should block
     })
     void testAssignRoleAuthorization(String permission, int expectedStatus) throws Exception {
@@ -77,19 +78,21 @@ class RbacMatrixIntegrationTest {
         mvc.perform(post("/api/v1/users/" + UUID.randomUUID() + "/roles")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request))
+                        .with(csrf())
                         .with(authentication(new UsernamePasswordAuthenticationToken(principal, null, List.of(new SimpleGrantedAuthority(permission))))))
                 .andExpect(status().is(expectedStatus));
     }
 
     @ParameterizedTest
     @CsvSource({
-            "users.role.assign, 204",
+            "users.role.assign, 404",
             "some.other.permission, 403"
     })
     void testRevokeRoleAuthorization(String permission, int expectedStatus) throws Exception {
         AuthenticatedUser principal = mockUser("ROLE_ADMIN", permission);
 
         mvc.perform(delete("/api/v1/users/" + UUID.randomUUID() + "/roles/CUSTOMER")
+                        .with(csrf())
                         .with(authentication(new UsernamePasswordAuthenticationToken(principal, null, List.of(new SimpleGrantedAuthority(permission))))))
                 .andExpect(status().is(expectedStatus));
     }

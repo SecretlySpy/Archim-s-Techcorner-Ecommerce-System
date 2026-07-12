@@ -4,6 +4,8 @@ import com.archimstechcorner.marketplace.features.users.domain.model.User;
 import com.archimstechcorner.marketplace.features.users.domain.model.UserMfaMethod;
 import com.archimstechcorner.marketplace.features.users.domain.repository.MfaMethodRepository;
 import com.archimstechcorner.marketplace.features.users.domain.repository.UserRepository;
+import com.archimstechcorner.marketplace.shared.error.ApiException;
+import com.archimstechcorner.marketplace.shared.error.ErrorCode;
 import org.jboss.aerogear.security.otp.Totp;
 import org.jboss.aerogear.security.otp.api.Base32;
 import org.springframework.stereotype.Service;
@@ -25,7 +27,8 @@ public class MfaService {
 
     @Transactional
     public String enrollTotp(Long userId) {
-        User user = userRepository.findById(userId).orElseThrow();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "User not found."));
         
         // Disable existing methods
         mfaMethodRepository.findByUserIdAndMethodType(userId, "TOTP")
@@ -45,11 +48,11 @@ public class MfaService {
     @Transactional
     public void activateTotp(Long userId, String code) {
         UserMfaMethod method = mfaMethodRepository.findByUserIdAndMethodType(userId, "TOTP")
-                .orElseThrow(() -> new IllegalArgumentException("No TOTP enrollment found"));
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "No TOTP enrollment found."));
 
         Totp totp = new Totp(method.getSecretKey());
         if (!totp.verify(code)) {
-            throw new IllegalArgumentException("Invalid TOTP code");
+            throw new ApiException(ErrorCode.MFA_INVALID, "Invalid TOTP code.");
         }
 
         method.verify();
