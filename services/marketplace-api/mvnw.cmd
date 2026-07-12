@@ -32,11 +32,17 @@
 @SET __MVNW_ERROR__=
 @SET __MVNW_PSMODULEP_SAVE=%PSModulePath%
 @SET PSModulePath=
-@FOR /F "usebackq tokens=1* delims==" %%A IN (`powershell -noprofile "& {$scriptDir='%~dp0'; $script='%__MVNW_ARG0_NAME__%'; icm -ScriptBlock ([Scriptblock]::Create((Get-Content -Raw '%~f0'))) -NoNewScope}"`) DO @(
+@REM Pass paths as data so apostrophes in the checkout path cannot break PowerShell parsing.
+@SET "__MVNW_SCRIPT_DIR__=%~dp0"
+@SET "__MVNW_SCRIPT_FILE__=%~f0"
+@FOR /F "usebackq tokens=1* delims==" %%A IN (`powershell -noprofile "& {$scriptDir=$env:__MVNW_SCRIPT_DIR__; $script=$env:__MVNW_ARG0_NAME__; icm -ScriptBlock ([Scriptblock]::Create((Get-Content -Raw -LiteralPath $env:__MVNW_SCRIPT_FILE__))) -NoNewScope}"`) DO @(
   IF "%%A"=="MVN_CMD" (set __MVNW_CMD__=%%B) ELSE IF "%%B"=="" (echo %%A) ELSE (echo %%A=%%B)
 )
 @SET PSModulePath=%__MVNW_PSMODULEP_SAVE%
 @SET __MVNW_PSMODULEP_SAVE=
+@REM Clear wrapper-only path variables before Maven inherits the environment.
+@SET __MVNW_SCRIPT_DIR__=
+@SET __MVNW_SCRIPT_FILE__=
 @SET __MVNW_ARG0_NAME__=
 @SET MVNW_USERNAME=
 @SET MVNW_PASSWORD=

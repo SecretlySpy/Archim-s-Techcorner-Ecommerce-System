@@ -15,7 +15,13 @@ INSERT INTO roles (code, name, is_active, created_at, updated_at) VALUES
     ('SUPPORT',  'Support Agent',         TRUE, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
     ('FINANCE',  'Finance Administrator', TRUE, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)),
     ('CONTENT',  'Content Manager',       TRUE, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6))
-ON DUPLICATE KEY UPDATE name = VALUES(name), is_active = VALUES(is_active), updated_at = UTC_TIMESTAMP(6);
+-- Alias the candidate row so reruns update mutable reference data without relying on MySQL's
+-- deprecated VALUES(column) function. The stable role code remains the duplicate-key identity.
+AS incoming
+ON DUPLICATE KEY UPDATE
+    name = incoming.name,
+    is_active = incoming.is_active,
+    updated_at = UTC_TIMESTAMP(6);
 
 -- --- Permissions (module.action) ---
 INSERT INTO permissions (code, module, description, is_active, created_at) VALUES
@@ -71,7 +77,13 @@ INSERT INTO permissions (code, module, description, is_active, created_at) VALUE
     ('content.faq.manage',      'notifications','Manage the help center / FAQ',      TRUE, UTC_TIMESTAMP(6)),
     ('content.publish',         'notifications','Publish content',                  TRUE, UTC_TIMESTAMP(6)),
     ('content.policy.publish',  'notifications','Publish marketplace policy (step-up)', TRUE, UTC_TIMESTAMP(6))
-ON DUPLICATE KEY UPDATE module = VALUES(module), description = VALUES(description), is_active = VALUES(is_active);
+-- Keep permission metadata convergent on every Flyway repeatable run. The alias exposes the
+-- candidate values with supported MySQL 8 syntax while permission code remains immutable.
+AS incoming
+ON DUPLICATE KEY UPDATE
+    module = incoming.module,
+    description = incoming.description,
+    is_active = incoming.is_active;
 
 -- --- Role -> permission grants (only the "A" cells from rbac-matrix §5; conditional/
 --     delegable cells are gated in the application service, not seeded as blanket grants) ---

@@ -13,10 +13,16 @@ import com.archimstechcorner.marketplace.features.sellers.domain.model.Seller;
 import com.archimstechcorner.marketplace.features.sellers.domain.model.SellerStatus;
 import com.archimstechcorner.marketplace.shared.error.ApiException;
 import com.archimstechcorner.marketplace.shared.error.ErrorCode;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -120,6 +126,47 @@ public class ProductService {
         }
         product.getVariants().size(); // force-init lazy collection in-tx before it is mapped in the controller
         return product;
+    }
+
+    /**
+     * Public product feed (guest browsing) — only published (ACTIVE) products, newest first,
+     * optionally filtered by category or a name search. Mapped to lightweight cards in-tx.
+     */
+    @Transactional(readOnly = true)
+    public FeedPage getFeed(int page, int size, Long categoryId, String query) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 60); // cap page size to protect the DB
+        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        Page<Product> result;
+        if (query != null && !query.isBlank()) {
+            result = productRepository.findByStatusAndNameContainingIgnoreCase(
+                    ProductStatus.ACTIVE, query.trim(), pageable);
+        } else if (categoryId != null) {
+            result = productRepository.findByStatusAndCategory_Id(ProductStatus.ACTIVE, categoryId, pageable);
+        } else {
+            result = productRepository.findByStatus(ProductStatus.ACTIVE, pageable);
+        }
+
+        List<ProductFeedItem> items = result.getContent().stream().map(this::toFeedItem).toList();
+        return new FeedPage(items, result.getNumber(), result.getSize(),
+                result.getTotalElements(), result.getTotalPages());
+    }
+
+    private ProductFeedItem toFeedItem(Product product) {
+        // Representative price = the lowest current price across variants (sale price when present).
+        BigDecimal minPrice = product.getVariants().stream()
+                .map(v -> v.getSalePrice() != null ? v.getSalePrice() : v.getRegularPrice())
+                .filter(Objects::nonNull)
+                .min(BigDecimal::compareTo)
+                .orElse(null);
+        return new ProductFeedItem(
+                product.getPublicId().toString(),
+                product.getName(),
+                product.getSlug(),
+                product.getDescription(),
+                minPrice,
+                product.getSeller().getName());
     }
 
     /** Lists a seller's own products (any status). Caller must own the seller. */

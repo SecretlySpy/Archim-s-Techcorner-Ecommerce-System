@@ -19,6 +19,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> findBySeller(Seller seller, Pageable pageable);
     Page<Product> findByStatus(ProductStatus status, Pageable pageable);
 
+    /** Public feed filters (published products only). */
+    Page<Product> findByStatusAndCategory_Id(ProductStatus status, Long categoryId, Pageable pageable);
+    Page<Product> findByStatusAndNameContainingIgnoreCase(ProductStatus status, String name, Pageable pageable);
+
     /** A seller's own products (any status), newest first — for the Seller Center list. */
     List<Product> findBySellerOrderByCreatedAtDesc(Seller seller);
 }

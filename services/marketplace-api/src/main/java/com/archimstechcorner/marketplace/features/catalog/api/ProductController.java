@@ -80,6 +80,20 @@ public class ProductController {
         return mapToResponse(productService.getProduct(publicId));
     }
 
+    /**
+     * PUBLIC product feed (guest browsing) — the main shop stream. No authentication required;
+     * returns only published (ACTIVE) products. Supports pagination, category filter, and search.
+     * Declared as a literal path so it takes precedence over {@code /{publicId}}.
+     */
+    @GetMapping("/feed")
+    public com.archimstechcorner.marketplace.features.catalog.application.FeedPage feed(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "24") int size,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String q) {
+        return productService.getFeed(page, size, categoryId, q);
+    }
+
     /** Seller Center: list the caller's own products (any status) for a seller they belong to. */
     @GetMapping
     @PreAuthorize("isAuthenticated()")

@@ -1,26 +1,21 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Archim's TechCorner",
-  description: "Multi-vendor technology marketplace",
+  title: "Archim's TechCorner — Shop electronics, computers, gaming & more",
+  description: "Browse thousands of tech products from verified sellers. No account needed to shop the catalog.",
 };
 
+/**
+ * Full-width root shell. Each area supplies its own chrome:
+ * the shop pages render a shop header, the Seller Center renders a dashboard sidebar,
+ * and identity pages use the narrow (auth) layout.
+ */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <div className="container">
-          <div className="brand">
-            <Link href="/">
-              Archim&apos;s <span>TechCorner</span>
-            </Link>
-          </div>
-          {children}
-        </div>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
