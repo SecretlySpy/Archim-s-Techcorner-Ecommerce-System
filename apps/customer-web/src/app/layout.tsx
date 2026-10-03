@@ -1,7 +1,13 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Inter } from "next/font/google";
 import { ToastProvider } from "@/components/Toast";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Archim's TechCorner — Shop electronics, computers, gaming & more",
@@ -16,7 +22,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>
+      <body className={inter.className}>
         <ToastProvider>
           {children}
         </ToastProvider>
