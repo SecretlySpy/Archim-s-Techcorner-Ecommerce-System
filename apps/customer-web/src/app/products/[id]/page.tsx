@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ShopHeader } from "@/components/ShopHeader";
 import { api, ApiError, type ProductResponse, type CurrentUser } from "@/lib/api";
 import { useToast } from "@/components/Toast";
+import { Button } from "@archim/ui-components";
 
 function peso(n: number): string {
   return "₱" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -22,6 +23,7 @@ export default function ProductDetailPage() {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [qty, setQty] = useState(1);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -47,8 +49,8 @@ export default function ProductDetailPage() {
     if (!selectedVariantId) return;
     setActionLoading(true);
     try {
-      await api.post("/api/v1/cart/items", { variantPublicId: selectedVariantId, quantity: 1 });
-      showToast("Added to cart", "success");
+      await api.post("/api/v1/cart/items", { variantPublicId: selectedVariantId, quantity: qty });
+      showToast(`Added ${qty} to cart`, "success");
     } catch (e: any) {
       showToast(e.message || "Failed to add to cart", "error");
     } finally {
@@ -89,6 +91,7 @@ export default function ProductDetailPage() {
             <p className="links"><Link href="/">← Back to shop</Link></p>
             <div className="card">
               <h1 className="page-title">{product.name}</h1>
+              <p><Link href={`/store/${ /* seller id not in response, placeholder link using query or extend */ 'demo' }`}>View seller storefront →</Link></p>
               {product.description && <p className="subtitle">{product.description}</p>}
               <div className="pdp-price">{from != null ? peso(from) : "—"}</div>
 
@@ -129,22 +132,51 @@ export default function ProductDetailPage() {
                 </div>
               )}
 
-              {user ? (
+               {product.images && product.images.length > 0 && (
+                 <div style={{ margin: '12px 0' }}>
+                   <h3>Media</h3>
+                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                     {product.images.map((img, i) => (
+                       <div key={i} className="product-thumb" style={{ width: 80, height: 80, background: 'var(--glass)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: img.primary ? '2px solid var(--accent)' : '1px solid var(--border)', fontSize: 10, color: 'var(--muted)' }}>
+                         {img.url ? <img src={img.url} alt="" style={{maxWidth:'100%',maxHeight:'100%'}} /> : '📷'}
+                       </div>
+                     ))}
+                   </div>
+                 </div>
+               )}
+
+               {product.specifications && product.specifications.length > 0 && (
+                 <div style={{ margin: '12px 0' }}>
+                   <h3>Specifications</h3>
+                   <ul style={{ paddingLeft: 16 }}>
+                     {product.specifications.map((s, i) => (
+                       <li key={i}><strong>{s.name}:</strong> {s.value}</li>
+                     ))}
+                   </ul>
+                 </div>
+               )}
+
+               <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '12px 0' }}>
+                 <label>Qty</label>
+                 <input type="number" min={1} max={10} value={qty} onChange={e=>setQty(Math.max(1, parseInt(e.target.value)||1))} style={{ width: 60 }} />
+               </div>
+
+               {user ? (
                 <div style={{ display: "flex", gap: "12px" }}>
-                  <button 
-                    className="btn btn-full" 
-                    disabled={!selectedVariantId || actionLoading} 
-                    onClick={handleAddToCart}
-                  >
-                    Add to Cart
-                  </button>
-                  <button 
-                    className="btn btn-outline btn-full" 
-                    disabled={actionLoading} 
-                    onClick={handleAddToWishlist}
-                  >
-                    Save to Wishlist
-                  </button>
+                   <Button 
+                     disabled={!selectedVariantId || actionLoading} 
+                     onClick={handleAddToCart}
+                   >
+                     Add to Cart
+                   </Button>
+                   <Button 
+                     variant="outline"
+                     disabled={actionLoading} 
+                     onClick={handleAddToWishlist}
+                   >
+                     Save to Wishlist
+                   </Button>
+                  <Link className="btn btn-outline btn-full" href={`/compare?ids=${product.id}`}>Compare</Link>
                 </div>
               ) : (
                 <Link className="btn btn-full" href="/login">Sign in to add to cart</Link>

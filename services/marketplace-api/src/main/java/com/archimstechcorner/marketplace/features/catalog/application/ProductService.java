@@ -113,6 +113,8 @@ public class ProductService {
     public Product getProduct(String productPublicId) {
         Product product = requireProduct(productPublicId);
         product.getVariants().size(); // force-init lazy collection in-tx (open-in-view is off)
+        product.getImages().size();
+        product.getSpecifications().size();
         return product;
     }
 
@@ -125,6 +127,8 @@ public class ProductService {
             throw new ApiException(ErrorCode.NOT_FOUND, "Product not found.");
         }
         product.getVariants().size(); // force-init lazy collection in-tx before it is mapped in the controller
+        product.getImages().size();
+        product.getSpecifications().size();
         return product;
     }
 
@@ -133,7 +137,7 @@ public class ProductService {
      * optionally filtered by category or a name search. Mapped to lightweight cards in-tx.
      */
     @Transactional(readOnly = true)
-    public FeedPage getFeed(int page, int size, Long categoryId, String query) {
+    public FeedPage getFeed(int page, int size, Long categoryId, Long brandId, String query) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 60); // cap page size to protect the DB
         Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
@@ -144,6 +148,8 @@ public class ProductService {
                     ProductStatus.ACTIVE, query.trim(), pageable);
         } else if (categoryId != null) {
             result = productRepository.findByStatusAndCategory_Id(ProductStatus.ACTIVE, categoryId, pageable);
+        } else if (brandId != null) {
+            result = productRepository.findByStatusAndBrand_Id(ProductStatus.ACTIVE, brandId, pageable);
         } else {
             result = productRepository.findByStatus(ProductStatus.ACTIVE, pageable);
         }
@@ -178,6 +184,20 @@ public class ProductService {
         return products;
     }
 
+    /** T10: Public list of ACTIVE products for seller storefront (no ownership required). */
+    @Transactional(readOnly = true)
+    public java.util.List<Product> listPublicSellerProducts(String sellerPublicId) {
+        Seller seller = sellerService.requireSeller(sellerPublicId);
+        if (seller.getStatus() != SellerStatus.ACTIVE) {
+            throw new ApiException(ErrorCode.NOT_FOUND, "Seller not found.");
+        }
+        java.util.List<Product> products = productRepository.findBySellerOrderByCreatedAtDesc(seller).stream()
+                .filter(p -> p.getStatus() == com.archimstechcorner.marketplace.features.catalog.domain.model.ProductStatus.ACTIVE)
+                .toList();
+        products.forEach(p -> { p.getVariants().size(); p.getImages().size(); p.getSpecifications().size(); });
+        return products;
+    }
+
     private Product requireProduct(String productPublicId) {
         UUID id;
         try {
@@ -187,5 +207,15 @@ public class ProductService {
         }
         return productRepository.findByPublicId(id)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Product not found."));
+    }
+
+    /** T08: Autocomplete - MySQL source of truth, small limit, ACTIVE only. */
+    @Transactional(readOnly = true)
+    public List<ProductFeedItem> autocomplete(String query) {
+        if (query == null || query.trim().isEmpty()) return List.of();
+        String term = query.trim();
+        List<Product> matches = productRepository.findTop10ByStatusAndNameContainingIgnoreCaseOrderByNameAsc(
+                ProductStatus.ACTIVE, term);
+        return matches.stream().map(this::toFeedItem).toList();
     }
 }

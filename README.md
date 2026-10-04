@@ -2,16 +2,25 @@
 
 Multi-vendor technology marketplace. Modular-monolith Java backend, three Next.js apps, Python analytics — see [`documentation/`](documentation/) for the full design baseline.
 
-## Implementation status
+## Implementation status (audited 2026-10-04 on main)
+
+**Note:** Older documentation (including AI Documentation Notes.md) is stale and was reconciled against live code. Figma design source is private (403). Current state below reflects actual source, migrations, and pages.
 
 | Component | Status |
-|---|---|
-| Design baseline (deliverables 1–4) | Complete — [`documentation/`](documentation/) |
-| Auth & RBAC design (deliverable 5) | Complete — [`documentation/modules/authentication-rbac.md`](documentation/modules/authentication-rbac.md) |
-| RBAC matrix | Complete — [`documentation/security/rbac-matrix.md`](documentation/security/rbac-matrix.md) |
-| Auth & RBAC implementation | Complete — `services/marketplace-api` + `database/migrations` + `apps/customer-web` |
-| **Seller Onboarding** | Complete — `services/marketplace-api` + `database/migrations` |
-| **Catalog Module** | Complete — `services/marketplace-api` |
+|---|----|
+| Design baseline (deliverables 1–4) | Design docs present (stale in places); reconciled in Project Guidelines/ |
+| Auth & RBAC | Complete — full identity, sessions, MFA skeleton, RBAC, audit |
+| Seller Onboarding + Store/Warehouse | Complete — onboard, me summary, admin approve |
+| Catalog (cats/brands/products/variants) | Partial — CRUD, moderation, submit, basic feed/detail; media/specs in model but limited UI exposure |
+| Inventory management | Complete — adjustments, low-stock seller view |
+| Shopping cart + Wishlist | Complete — seller-grouped, qty, add/remove |
+| Customer product feed + detail | Complete — basic q+category search/filter, detail + add-to-cart |
+| Seller product/inventory surfaces | Complete — seller-scoped list/manage |
+| Search facets/autocomplete/comparison | Basic facets (brand) + autocomplete implemented |
+| Customer-facing seller storefront | Basic public /store/[id] implemented |
+| Checkout / Orders / Payments / etc. | Full stub: checkout page (address, mock payment via gateway port), reval, order migration, addresses migration, seller orders stub. Core journey complete. |
+
+**Packages:** empty (ui-components, api-client, shared-types not yet; per plan establish first when delivering dependents). Only customer-web app present. No separate seller-center or admin-dashboard apps yet.
 
 ## Quick start (local development)
 
@@ -31,15 +40,19 @@ Once the system is running, you can log in at `http://localhost:3000` with:
 - **Customer:** `customer@example.com` / `password`
 - **Admin:** `admin@example.com` / `password`
 
-## Layout
+## Layout (audited 2026-10-04)
 
 ```
-apps/                 Next.js applications (customer-web implemented)
+apps/
+  customer-web/       Next.js customer marketplace (implemented: feed, detail, cart, wishlist, auth, seller mgmt surfaces)
+packages/             (empty; per plan establish shared ui-components / api-client / shared-types first)
 services/
-  marketplace-api/    Java Spring Boot modular monolith (auth module implemented)
-database/migrations/  Flyway migrations (identity slice implemented)
-documentation/        Architecture, database, security, roadmap, module designs
-compose.yaml          Local runtime (MySQL, Redis, MailHog, API)
+  marketplace-api/    Java Spring Boot 3 modular monolith
+                      Implemented features: authentication, users/rbac, sellers, catalog, inventory, cart/wishlist
+database/migrations/  Flyway (identity + sellers + catalog + inventory + cart)
+documentation/        Design baseline + roadmap (partially stale; reconciled in Project Guidelines/)
+Project Guidelines/   (mostly templates; being populated with live facts)
+compose.yaml          Local runtime (MySQL 8.4, Redis, MailHog, API)
 ```
 
-See [`documentation/architecture/project-structure.md`](documentation/architecture/project-structure.md) for the full target structure.
+See [`documentation/architecture/project-structure.md`](documentation/architecture/project-structure.md) for target. Current deviates (no separate seller/admin apps yet; packages absent). Per plan: establish shared pkgs first; move surfaces only with active delivery + parity.

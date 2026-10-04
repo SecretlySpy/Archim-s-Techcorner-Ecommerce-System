@@ -1,0 +1,34 @@
+/* Shared design tokens — glass-over-hardware (reused from customer-web)
+   Green-led, not green-only. Copper prices, violet focus.
+   No decorative background circles. */
+
+:root {
+  --bg: #0c1a14;
+  --bg-elevated: rgba(8, 22, 16, 0.72);
+  --panel: rgba(244, 251, 246, 0.08);
+  --panel-hover: rgba(244, 251, 246, 0.14);
+  --border: rgba(255, 255, 255, 0.28);
+  --border-light: rgba(255, 255, 255, 0.4);
+  --text: #f4fbf6;
+  --text-secondary: #d5e8dc;
+  --muted: #9fbfae;
+  --accent: #b6f25c;
+  --accent-hover: #d4ff8a;
+  --accent-dim: rgba(182, 242, 92, 0.16);
+  --jade: #1f8a5b;
+  --ink: #102117;
+  --price: #e6a15c;
+  --focus: #8b7cff;
+  --danger: #ef7368;
+  --danger-dim: rgba(239, 115, 104, 0.16);
+  --ok: #73dc8c;
+  --ok-dim: rgba(115, 220, 140, 0.16);
+  --warning: #e6a15c;
+  --warning-dim: rgba(230, 161, 92, 0.16);
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 18px;
+  --transition: 180ms ease;
+  --glass: rgba(244, 251, 246, 0.1);
+  --shadow: 0 10px 24px rgba(5, 20, 12, 0.32);
+}

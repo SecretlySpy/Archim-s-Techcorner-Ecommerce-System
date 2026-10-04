@@ -7,6 +7,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { loginSchema, type LoginInput } from "@/features/authentication/schemas";
 import { api, ApiError } from "@/lib/api";
+import { Button } from "@archim/ui-components";
 
 /** Sign-in form. On success the backend sets auth cookies and we route to the account page. */
 export default function LoginPage() {
@@ -45,9 +46,9 @@ export default function LoginPage() {
         <input id="password" type="password" autoComplete="current-password" {...register("password")} />
         {errors.password && <p className="field-error">{errors.password.message}</p>}
 
-        <button type="submit" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Signing in…" : "Sign in"}
-        </button>
+        </Button>
       </form>
 
       <p className="links">

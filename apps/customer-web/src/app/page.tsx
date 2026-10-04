@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ShopHeader } from "@/components/ShopHeader";
-import { api, type FeedPage, type CategoryResponse } from "@/lib/api";
+import { api, type FeedPage, type CategoryResponse, type BrandResponse } from "@/lib/api";
 
 function formatPrice(n: number | null): string {
   if (n == null) return "—";
@@ -18,9 +18,11 @@ function formatPrice(n: number | null): string {
 export default function HomePage() {
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [brandId, setBrandId] = useState<number | null>(null);
   const [page, setPage] = useState(0);
   const [feed, setFeed] = useState<FeedPage | null>(null);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
+  const [brands, setBrands] = useState<BrandResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +38,7 @@ export default function HomePage() {
   // Category filter strip.
   useEffect(() => {
     api.get<CategoryResponse[]>("/api/v1/catalog/categories").then(setCategories).catch(() => {});
+    api.get<BrandResponse[]>("/api/v1/catalog/brands").then(setBrands).catch(() => {});
   }, []);
 
   const loadFeed = useCallback(() => {
@@ -43,13 +46,14 @@ export default function HomePage() {
     setError(null);
     const params = new URLSearchParams({ page: String(page), size: "24" });
     if (categoryId != null) params.set("categoryId", String(categoryId));
+    if (brandId != null) params.set("brandId", String(brandId));
     if (query) params.set("q", query);
     api
       .get<FeedPage>(`/api/v1/catalog/products/feed?${params.toString()}`)
       .then(setFeed)
       .catch(() => setError("Could not load products. Please try again."))
       .finally(() => setLoading(false));
-  }, [page, categoryId, query]);
+  }, [page, categoryId, brandId, query]);
 
   useEffect(() => {
     loadFeed();
@@ -58,10 +62,18 @@ export default function HomePage() {
   function onSearch(q: string) {
     setQuery(q);
     setCategoryId(null);
+    setBrandId(null);
     setPage(0);
   }
   function pickCategory(id: number | null) {
     setCategoryId(id);
+    setBrandId(null);
+    setQuery("");
+    setPage(0);
+  }
+  function pickBrand(id: number | null) {
+    setBrandId(id);
+    setCategoryId(null);
     setQuery("");
     setPage(0);
   }
@@ -72,8 +84,8 @@ export default function HomePage() {
       <div className="shop-body">
         <div className="category-strip">
           <button
-            className={`category-pill ${categoryId == null ? "active" : ""}`}
-            onClick={() => pickCategory(null)}
+            className={`category-pill ${categoryId == null && brandId == null ? "active" : ""}`}
+            onClick={() => { pickCategory(null); }}
           >
             All
           </button>
@@ -87,6 +99,19 @@ export default function HomePage() {
             </button>
           ))}
         </div>
+        {brands.length > 0 && (
+          <div className="category-strip" style={{ marginTop: 4 }}>
+            {brands.map((b) => (
+              <button
+                key={b.id}
+                className={`category-pill ${brandId === b.id ? "active" : ""}`}
+                onClick={() => pickBrand(b.id)}
+              >
+                {b.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         {query && <p className="page-subtitle">Results for &ldquo;{query}&rdquo;</p>}
 

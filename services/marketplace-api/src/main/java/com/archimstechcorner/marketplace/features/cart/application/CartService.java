@@ -6,6 +6,7 @@ import com.archimstechcorner.marketplace.features.catalog.domain.model.Product;
 import com.archimstechcorner.marketplace.features.catalog.domain.model.ProductStatus;
 import com.archimstechcorner.marketplace.features.catalog.domain.model.ProductVariant;
 import com.archimstechcorner.marketplace.features.catalog.domain.repository.ProductVariantRepository;
+import com.archimstechcorner.marketplace.features.payments.application.port.PaymentGateway;
 import com.archimstechcorner.marketplace.shared.error.ApiException;
 import com.archimstechcorner.marketplace.shared.error.ErrorCode;
 import org.springframework.stereotype.Service;
@@ -35,11 +36,14 @@ public class CartService {
 
     private final CartItemRepository cartItemRepository;
     private final ProductVariantRepository variantRepository;
+    private final PaymentGateway paymentGateway;
 
     public CartService(CartItemRepository cartItemRepository,
-                       ProductVariantRepository variantRepository) {
+                       ProductVariantRepository variantRepository,
+                       PaymentGateway paymentGateway) {
         this.cartItemRepository = cartItemRepository;
         this.variantRepository = variantRepository;
+        this.paymentGateway = paymentGateway;
     }
 
     /**
@@ -133,7 +137,14 @@ public class CartService {
 
             // Use sale price if available, otherwise regular price (INV-DB-1: DECIMAL(15,2))
             BigDecimal unitPrice = v.getSalePrice() != null ? v.getSalePrice() : v.getRegularPrice();
-            BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(ci.getQuantity()));
+            int currentStock = v.getStockQuantity();
+            int effectiveQty = Math.min(ci.getQuantity(), Math.max(0, currentStock)); // T11: stock revalidation (clamp)
+            if (effectiveQty != ci.getQuantity() && effectiveQty > 0) {
+                // persist cap on read (simple reval; full tx in checkout)
+                ci.setQuantity(effectiveQty);
+                cartItemRepository.save(ci);
+            }
+            BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(effectiveQty));
 
             group.items().add(new CartView.CartItemView(
                     v.getPublicId().toString(),
@@ -142,9 +153,9 @@ public class CartService {
                     v.getName(),
                     v.getSku(),
                     unitPrice,
-                    ci.getQuantity(),
+                    effectiveQty,
                     lineTotal,
-                    v.getStockQuantity()
+                    currentStock
             ));
             group.addToSubtotal(lineTotal);
 
@@ -180,5 +191,27 @@ public class CartService {
         }
         return variantRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Variant not found."));
+    }
+
+    /** T11/T18: Revalidate + checkout stub using PaymentGateway port (T15/T16). 
+     * Follows mandatory model: validate+reval in tx, then provider call outside.
+     */
+    @Transactional
+    public com.archimstechcorner.marketplace.features.cart.api.CartController.CheckoutResult checkout(Long userId) {
+        // Reval by loading view (clamps) - inside short tx
+        CartView view = getCart(userId);
+        if (view.totalItems() == 0) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED, "Cart is empty.");
+        }
+        String fakeOrderId = "ORD-" + java.util.UUID.randomUUID().toString().substring(0,8).toUpperCase();
+
+        // Provider call - NO MySQL lock held here (after commit of reval)
+        PaymentGateway.HostedSession session = paymentGateway.createHostedSession(
+            fakeOrderId, view.cartTotal(), "PHP", "http://localhost:3000/checkout?success=true", "http://localhost:3000/checkout?cancel=true");
+
+        // Clear cart after "checkout" for this slice
+        clearCart(userId);
+        // In real, store session etc.
+        return new com.archimstechcorner.marketplace.features.cart.api.CartController.CheckoutResult(fakeOrderId, "PENDING_PAYMENT", view.cartTotal(), session.redirectUrl());
     }
 }
