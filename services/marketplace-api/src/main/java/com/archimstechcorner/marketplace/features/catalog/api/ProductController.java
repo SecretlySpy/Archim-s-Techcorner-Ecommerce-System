@@ -90,8 +90,16 @@ public class ProductController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "24") int size,
             @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long brandId,
             @RequestParam(required = false) String q) {
-        return productService.getFeed(page, size, categoryId, q);
+        return productService.getFeed(page, size, categoryId, brandId, q);
+    }
+
+    /** T08: Autocomplete suggestions (public, ACTIVE, limited). */
+    @GetMapping("/autocomplete")
+    public List<com.archimstechcorner.marketplace.features.catalog.application.ProductFeedItem> autocomplete(
+            @RequestParam(required = false) String q) {
+        return productService.autocomplete(q);
     }
 
     /** Seller Center: list the caller's own products (any status) for a seller they belong to. */
@@ -100,6 +108,14 @@ public class ProductController {
     public List<ProductResponse> listSellerProducts(@RequestParam String sellerPublicId,
                                                     @AuthenticationPrincipal AuthenticatedUser principal) {
         return productService.listSellerProducts(sellerPublicId, principal.userId()).stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    /** T10: Public storefront catalog for a seller — only ACTIVE products. */
+    @GetMapping("/public")
+    public List<ProductResponse> publicSellerProducts(@RequestParam String sellerPublicId) {
+        return productService.listPublicSellerProducts(sellerPublicId).stream()
                 .map(this::mapToResponse)
                 .toList();
     }
@@ -123,13 +139,25 @@ public class ProductController {
                 ))
                 .collect(Collectors.toList());
 
+        List<ProductImageResponse> images = product.getImages() != null ? product.getImages().stream()
+                .map(i -> new ProductImageResponse(i.getUrl(), i.isPrimary(), i.getDisplayOrder()))
+                .sorted(java.util.Comparator.comparingInt(ProductImageResponse::displayOrder))
+                .collect(Collectors.toList()) : List.of();
+
+        List<ProductSpecResponse> specs = product.getSpecifications() != null ? product.getSpecifications().stream()
+                .map(s -> new ProductSpecResponse(s.getName(), s.getSpecValue(), s.getDisplayOrder()))
+                .sorted(java.util.Comparator.comparingInt(ProductSpecResponse::displayOrder))
+                .collect(Collectors.toList()) : List.of();
+
         return new ProductResponse(
                 product.getPublicId().toString(),
                 product.getName(),
                 product.getSlug(),
                 product.getDescription(),
                 product.getStatus().name(),
-                variants
+                variants,
+                images,
+                specs
         );
     }
 
@@ -161,7 +189,9 @@ public class ProductController {
             String slug,
             String description,
             String status,
-            List<VariantResponse> variants
+            List<VariantResponse> variants,
+            List<ProductImageResponse> images,
+            List<ProductSpecResponse> specifications
     ) {}
 
     public record VariantResponse(
@@ -173,4 +203,7 @@ public class ProductController {
             int stockQuantity,
             String attributes
     ) {}
+
+    public record ProductImageResponse(String url, boolean primary, int displayOrder) {}
+    public record ProductSpecResponse(String name, String value, int displayOrder) {}
 }

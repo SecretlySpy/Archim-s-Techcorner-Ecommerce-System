@@ -96,6 +96,12 @@ export default function SellerDashboardPage() {
                 >
                   📊 Inventory
                 </Link>
+                <Link
+                  href={`/seller/${seller.sellerId}/orders`}
+                  className="btn btn-sm btn-outline"
+                >
+                  📋 Orders (stub)
+                </Link>
               </div>
             )}
 

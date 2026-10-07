@@ -73,6 +73,14 @@ public class CartController {
         cartService.clearCart(principal.userId());
     }
 
+    /** T11/T18 stub: Checkout - revalidates stock/price, creates intent (full orders in later). Returns confirmation. */
+    @PostMapping("/checkout")
+    public CheckoutResult checkout(@AuthenticationPrincipal AuthenticatedUser principal) {
+        return cartService.checkout(principal.userId());
+    }
+
+    public record CheckoutResult(String orderId, String status, java.math.BigDecimal total, String paymentRedirect) {}
+
     // ---- Request DTOs ----
 
     public record AddToCartRequest(

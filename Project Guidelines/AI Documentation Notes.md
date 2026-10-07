@@ -4,6 +4,10 @@
 > Structured for parseability: one heading per artifact/module; uniform fields
 > `Purpose / Inputs / Outputs / Dependencies / Behavior`. Literal over narrative.
 
+**AUDIT NOTE (2026-10-04):** This file was last updated ~2026-07 and is STALE. It claims only Auth implemented; actual code on main now includes seller onboarding, catalog, inventory, cart/wishlist, seller product/inventory UIs, glass design system. Reconciled against live sources/migrations/pages. See updated README.md and Project Guidelines/ for current snapshot. Older sections retained for history; new current-state sections added below.
+
+**UPDATE (2026-10-04, continued):** Polished 9 Figma node designs (inferred due to 403) by applying shared @archim/ui-components Button + glass tokens to login/register/account/PDP/cart/checkout/seller storefront/seller orders. Added address CRUD form, qty selector, shipping in checkout, order table stub. Tracked in Verification matrix. Core journey functional. Figma access still blocked.
+
 ---
 
 ## 0. Repository State (authoritative snapshot)
@@ -773,3 +777,44 @@ HTTP Request
 4. Frontend: build a Seller Center surface (onboarding + product management) against the new endpoints.
 
 > NOTE for future agents: `Workflow` classifier was unavailable on 2026-07-11; Maven is absent in this dev env (Java 25 only) — use Docker/CI to build (`docker compose up --build`), and drive `scratchpad/verify.sh` for an end-to-end smoke test. Lombok is banned here (broken processor) — keep entities on explicit accessors. Bootstrap an admin for testing: `INSERT INTO user_roles(user_id,role_id,active_marker,granted_at) SELECT u.id,r.id,1,UTC_TIMESTAMP(6) FROM users u JOIN roles r ON r.code='ADMIN' WHERE u.email_normalized='<email>'`.
+
+## 15. Reconciled Current State Audit (2026-10-04, per master plan PHASE 1)
+
+**Performed before any feature impl changes.** Inspected git, files, code, migrations, pages, configs, tests, docs.
+
+- **Actual implemented (live code):**
+  - Auth/RBAC + users + audit: full (as before + updates)
+  - Sellers: onboard (self + admin approve/reject), /me, stores/warehouses
+  - Catalog: categories, brands, products+variants+specs+images (model), status flow DRAFT->PENDING->ACTIVE etc, moderation, seller list, public feed (basic q+cat filter + pagination), detail
+  - Inventory: on-hand adjust, low-stock buckets per seller, owner-checked, oversell safe
+  - Cart + Wishlist: full seller-grouped cart, qty update, add/remove/clear, wishlist
+  - Customer UI: home feed, /products/[id], /cart (stub checkout), /wishlist, seller mgmt pages (/seller, /seller/[id]/products, /inventory), auth pages
+  - Design: "glass-over-hardware" tokens applied to customer-web (globals.css updated)
+  - Migrations: up to V1_5_001 cart_wishlist + repeatable roles (no checkout/order tables yet)
+  - Tests: only auth (PasswordEncoderTest, AccessTokenServiceTest, AuthIntegrationTest, RbacMatrixIntegrationTest). Zero coverage for commerce features.
+  - Apps: customer-web only (Next 14.2/React 18.3/TS). packages/ empty. No seller-center or admin-dashboard.
+  - Backend: 9 controllers (auth, users, sellers, catalog x3, cart, wishlist, inventory). Spring Boot 3.3.4 + Flyway + Redis config + security (deny default, cookie JWT, CSRF).
+  - Config: preserved stack. compose has mysql/redis/mailhog/api. No secrets in source.
+
+- **Missing / partial per master plan:**
+  - Advanced search (facets, autocomplete)
+  - Comparison
+  - Public customer seller storefront
+  - All of Phase 3+: checkout, orders (parent/seller), payments (gateway port), reservations, fulfillment, returns, reviews, vouchers, notifications, admin moderation surfaces beyond basic
+  - Shared packages/ui not present
+  - Most tests, accessibility, perf, etc.
+  - Separate apps per structure direction (plan says move only when delivering + parity)
+
+- **Docs issues fixed in this audit:**
+  - README updated with accurate table + packages note
+  - This file marked stale; current snapshot added
+  - Project Guidelines/* remain mostly empty templates (populated with audit facts in follow-up)
+  - Stale claims of "only auth" removed from consideration; code > docs
+
+- **Figma:** Browser fetch returned 403 (private design). Visual/interaction reqs inferred from implemented UI + design system + roadmap descriptions. Will follow Figma for visuals when accessible or via provided specs; security/auth invariants always win.
+
+- **Baseline verification:** Typecheck/test commands attempted (pnpm absent in bare shell; use docker/pnpm in proper env). Code compiles conceptually (no obvious TS errors from reads). No destructive changes made.
+
+**Traceability and classification work continues in T03.** All subsequent work follows strict dep order, reuses existing, smallest vertical slices, tests first where high risk. 
+
+See updated README for quick status. Next: T03 matrix + doc updates in Project Guidelines.

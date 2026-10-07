@@ -6,6 +6,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { registerSchema, type RegisterInput } from "@/features/authentication/schemas";
 import { api, ApiError } from "@/lib/api";
+import { Button } from "@archim/ui-components";
 
 /** Customer registration. The backend responds 202 for any email (anti-enumeration), so on success
  *  we always show the same "check your email" confirmation. */
@@ -64,9 +65,9 @@ export default function RegisterPage() {
           ? <p className="field-error">{errors.password.message}</p>
           : <p className="subtitle" style={{ margin: "6px 0 0" }}>At least 12 characters.</p>}
 
-        <button type="submit" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Creating…" : "Create account"}
-        </button>
+        </Button>
       </form>
 
       <p className="links">

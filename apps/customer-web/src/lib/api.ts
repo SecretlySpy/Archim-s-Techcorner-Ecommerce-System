@@ -56,6 +56,15 @@ export const api = {
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };
 
+/** Address helpers */
+export const addressesApi = {
+  list: () => api.get<Address[]>("/api/v1/addresses"),
+  create: (body: any) => api.post<Address>("/api/v1/addresses", body),
+};
+
+/** T08 autocomplete helper */
+export const autocomplete = (q: string) => api.get<FeedItem[]>(`/api/v1/catalog/products/autocomplete?q=${encodeURIComponent(q)}`);
+
 // ========================================================================
 // Shared TypeScript interfaces for API responses
 // ========================================================================
@@ -99,6 +108,8 @@ export interface ProductResponse {
   description: string | null;
   status: string;
   variants: VariantResponse[];
+  images: ProductImageResponse[];
+  specifications: ProductSpecResponse[];
 }
 
 export interface VariantResponse {
@@ -109,6 +120,18 @@ export interface VariantResponse {
   salePrice: number | null;
   stockQuantity: number;
   attributes: string | null;
+}
+
+export interface ProductImageResponse {
+  url: string;
+  primary: boolean;
+  displayOrder: number;
+}
+
+export interface ProductSpecResponse {
+  name: string;
+  value: string;
+  displayOrder: number;
 }
 
 /** GET /api/v1/catalog/products/feed — public product feed (guest browsing) */
@@ -188,4 +211,19 @@ export interface InventoryBucket {
   reserved: number;
   sellable: number;
   reorderThreshold: number;
+}
+
+/** Address types for T12 */
+export interface Address {
+  id: string;
+  addressType: string;
+  recipientName: string;
+  phone: string | null;
+  line1: string;
+  line2: string | null;
+  city: string;
+  state: string | null;
+  postalCode: string;
+  country: string;
+  isDefault: boolean;
 }

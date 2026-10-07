@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { api, ApiError, type InventoryBucket } from "@/lib/api";
+import { Button } from "@archim/ui-components";
 
 /**
  * Inventory Management page for a seller. Shows low-stock alerts and allows
@@ -33,7 +34,10 @@ export default function InventoryPage() {
 
   return (
     <>
-      <h1 className="page-title">Inventory</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1 className="page-title">Inventory</h1>
+        <Button variant="outline" size="sm" onClick={loadInventory}>Refresh</Button>
+      </div>
       <p className="page-subtitle">
         Low-stock alerts for your warehouses. Items below reorder threshold are shown here.
       </p>

@@ -75,7 +75,9 @@ Preserve routing continuity:
 
 AIO owns preprocessing and final routing. Consume the finalized brief as context for authorized sustained engineering; Coding Companion remains the primary code specialist. Preserve raw intent, required output, scope/exclusions, dependencies, acceptance, permissions, assumptions, and unresolved alternatives. Supporting language, grammar, terminology, requirement, planning, and brief compilation do not replace context establishment, security analysis, engineering reasoning, implementation, tests, documentation, or verification.
 
-Inspect the actual project and revisit preprocessing assumptions when implementation-time facts contradict them; return the narrow unresolved decision to AIO or the user without silently expanding scope. A polished precompiled brief is not implementation evidence or permission for a protected action. Apply all existing secret/GitHub, protected-action, verification, documentation, and continuity controls. Spoon Feed Reviewer may shape permitted user-facing explanations progressively and concisely. It cannot change engineering conclusions, tests, security decisions, or artifact ownership, and adds no unsolicited lesson inside strict code/config/schema artifacts.
+Inspect the actual project and revisit preprocessing assumptions when implementation-time facts contradict them; return the narrow unresolved decision to AIO or the user without silently expanding scope. A polished precompiled brief is not implementation evidence or permission for a protected action. Apply all existing secret/GitHub, protected-action, verification, documentation, and continuity controls.
+
+Spoon Feed Reviewer may shape permitted user-facing explanations progressively and concisely. It cannot change engineering conclusions, tests, security decisions, or artifact ownership, and adds no unsolicited lesson inside strict code/config/schema artifacts.
 
 ## Specialist handoffs (no double ownership)
 

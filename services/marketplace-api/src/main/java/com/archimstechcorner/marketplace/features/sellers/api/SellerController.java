@@ -73,6 +73,19 @@ public class SellerController {
         return sellerService.listByStatus(status);
     }
 
+    /** T10: Public seller storefront info (ACTIVE sellers only). */
+    @GetMapping("/{publicId}")
+    public SellerSummary publicSeller(@PathVariable String publicId) {
+        Seller seller = sellerService.requireSeller(publicId);  // reuse, status check in view or here
+        if (seller.getStatus() != SellerStatus.ACTIVE) {
+            throw new com.archimstechcorner.marketplace.shared.error.ApiException(com.archimstechcorner.marketplace.shared.error.ErrorCode.NOT_FOUND, "Seller not found.");
+        }
+        return sellerService.listByStatus(SellerStatus.ACTIVE).stream()
+                .filter(s -> s.sellerId().equals(publicId))
+                .findFirst()
+                .orElseThrow(() -> new com.archimstechcorner.marketplace.shared.error.ApiException(com.archimstechcorner.marketplace.shared.error.ErrorCode.NOT_FOUND, "Seller not found."));
+    }
+
     /** Administrator approves a pending seller (PENDING → ACTIVE). Requires {@code seller.approve}. */
     @PostMapping("/{publicId}/approve")
     @PreAuthorize("hasAuthority('seller.approve')")

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, ApiError, type CartView, type CurrentUser } from "@/lib/api";
+import { Button } from "@archim/ui-components";
 
 /**
  * Shopping Cart page. Displays the user's cart with items grouped by seller,
@@ -92,9 +93,9 @@ export default function CartPage() {
       <div className="card-header">
         <h1 className="page-title">Shopping Cart</h1>
         {!isEmpty && (
-          <button className="btn btn-sm btn-outline" onClick={clearCart} style={{ marginTop: 0 }}>
+          <Button variant="outline" onClick={clearCart} style={{ marginTop: 0 }}>
             Clear Cart
-          </button>
+          </Button>
         )}
       </div>
 
@@ -159,14 +160,14 @@ export default function CartPage() {
 
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div className="cart-price">${item.lineTotal.toFixed(2)}</div>
-                    <button
-                      className="btn btn-sm btn-ghost"
-                      style={{ color: "var(--danger)", marginTop: 0 }}
-                      disabled={updating === item.variantPublicId}
-                      onClick={() => removeItem(item.variantPublicId)}
-                    >
-                      ✕
-                    </button>
+                     <Button
+                       variant="ghost"
+                       style={{ color: "var(--danger)", marginTop: 0 }}
+                       disabled={updating === item.variantPublicId}
+                       onClick={() => removeItem(item.variantPublicId)}
+                     >
+                       ✕
+                     </Button>
                   </div>
                 </div>
               ))}
@@ -178,11 +179,11 @@ export default function CartPage() {
             <span>${cart!.cartTotal.toFixed(2)}</span>
           </div>
 
-          <button className="btn-full" style={{ marginTop: 16 }}>
+          <Link href="/checkout" className="btn-full" style={{ marginTop: 16, display: 'block', textAlign: 'center' }}>
             Proceed to Checkout
-          </button>
+          </Link>
           <p className="cart-item-meta" style={{ textAlign: "center", marginTop: 8 }}>
-            Checkout functionality coming in Sprint 7
+            Revalidates stock/price. Follows plan transaction model (stub for now)
           </p>
         </>
       )}
