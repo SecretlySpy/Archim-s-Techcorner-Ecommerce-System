@@ -112,6 +112,8 @@ public class User {
     public String getEmailDisplay() { return emailDisplay; }
     public void setEmailDisplay(String emailDisplay) { this.emailDisplay = emailDisplay; }
 
+    public String getEmail() { return emailDisplay; }
+
     public String getPhoneNormalized() { return phoneNormalized; }
     public void setPhoneNormalized(String phoneNormalized) { this.phoneNormalized = phoneNormalized; }
 
@@ -138,6 +140,7 @@ public class User {
 
     public int getSecurityVersion() { return securityVersion; }
     public void setSecurityVersion(int securityVersion) { this.securityVersion = securityVersion; }
+    public void bumpSecurityVersion() { this.securityVersion++; }
 
     public Instant getCreatedAt() { return createdAt; }
 

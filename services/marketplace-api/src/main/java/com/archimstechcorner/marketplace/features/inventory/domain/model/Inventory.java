@@ -85,6 +85,43 @@ public class Inventory {
         this.updatedAt = Instant.now();
     }
 
+    public void reserve(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Reservation quantity must be positive.");
+        }
+        if (sellable() < quantity) {
+            throw new IllegalStateException("Insufficient sellable stock to reserve. Available: " + sellable() + ", requested: " + quantity);
+        }
+        this.reservedQuantity += quantity;
+        this.updatedAt = Instant.now();
+    }
+
+    public void release(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Release quantity must be positive.");
+        }
+        if (this.reservedQuantity < quantity) {
+            throw new IllegalStateException("Cannot release more than reserved quantity. Reserved: " + this.reservedQuantity + ", release: " + quantity);
+        }
+        this.reservedQuantity -= quantity;
+        this.updatedAt = Instant.now();
+    }
+
+    public void consume(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Consume quantity must be positive.");
+        }
+        if (this.reservedQuantity < quantity) {
+            throw new IllegalStateException("Cannot consume more than reserved quantity. Reserved: " + this.reservedQuantity + ", consume: " + quantity);
+        }
+        if (this.onHandQuantity < quantity) {
+            throw new IllegalStateException("Cannot consume more than on-hand quantity. On hand: " + this.onHandQuantity + ", consume: " + quantity);
+        }
+        this.reservedQuantity -= quantity;
+        this.onHandQuantity -= quantity;
+        this.updatedAt = Instant.now();
+    }
+
     public Long getId() { return id; }
     public Warehouse getWarehouse() { return warehouse; }
     public ProductVariant getVariant() { return variant; }

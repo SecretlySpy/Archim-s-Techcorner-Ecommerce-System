@@ -63,13 +63,36 @@ export default function SellerLayout({ children }: { children: ReactNode }) {
 
         <div className="sidebar-section">
           <div className="sidebar-section-label">Seller Center</div>
-          <Link href="/seller" className={navClass("/seller")}>
+          <Link href="/seller" className={pathname === "/seller" ? "sidebar-link active" : "sidebar-link"}>
             🏪 My Sellers
           </Link>
           <Link href="/seller/onboard" className={navClass("/seller/onboard")}>
             ➕ New Seller
           </Link>
         </div>
+
+        {(() => {
+          const match = pathname.match(/^\/seller\/([^\/]+)(?:\/|$)/);
+          const currentSellerId = match && match[1] !== "onboard" ? match[1] : null;
+          if (!currentSellerId) return null;
+          return (
+            <div className="sidebar-section">
+              <div className="sidebar-section-label">Store Operations</div>
+              <Link href={`/seller/${currentSellerId}/orders`} className={navClass(`/seller/${currentSellerId}/orders`)}>
+                📦 Fulfillment
+              </Link>
+              <Link href={`/seller/${currentSellerId}/inventory`} className={navClass(`/seller/${currentSellerId}/inventory`)}>
+                📊 Stock & Reorder
+              </Link>
+              <Link href={`/seller/${currentSellerId}/finance`} className={navClass(`/seller/${currentSellerId}/finance`)}>
+                💰 Financial Ledger
+              </Link>
+              <Link href={`/seller/${currentSellerId}/products`} className={navClass(`/seller/${currentSellerId}/products`)}>
+                🏷️ Products
+              </Link>
+            </div>
+          );
+        })()}
 
         <div className="sidebar-section">
           <div className="sidebar-section-label">Shopping</div>

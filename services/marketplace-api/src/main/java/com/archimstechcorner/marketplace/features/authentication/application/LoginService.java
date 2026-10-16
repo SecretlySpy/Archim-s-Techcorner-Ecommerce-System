@@ -34,6 +34,7 @@ public class LoginService {
     private final SessionService sessionService;
     private final UserLoginEventRepository loginEventRepository;
     private final AuditService auditService;
+    private final AuthSecurityOutcomeService securityOutcomeService;
     private final AuthProperties properties;
     private final Clock clock;
     private final MfaService mfaService;
@@ -49,6 +50,7 @@ public class LoginService {
                         SessionService sessionService,
                         UserLoginEventRepository loginEventRepository,
                         AuditService auditService,
+                        AuthSecurityOutcomeService securityOutcomeService,
                         AuthProperties properties,
                         Clock clock,
                         MfaService mfaService,
@@ -59,6 +61,7 @@ public class LoginService {
         this.sessionService = sessionService;
         this.loginEventRepository = loginEventRepository;
         this.auditService = auditService;
+        this.securityOutcomeService = securityOutcomeService;
         this.properties = properties;
         this.clock = clock;
         this.mfaService = mfaService;
@@ -80,22 +83,21 @@ public class LoginService {
             // the delegating encoder throw, turning a clean 401 into a 500 and leaking that the email
             // does not exist — so we compare against the constructor-built timingEqualizerHash.
             passwordEncoder.matches(rawPassword, timingEqualizerHash);
-            recordEvent(null, LoginOutcome.FAILED, "NO_USER", normalized, device, now);
+            securityOutcomeService.recordLoginFailure(null, normalized, device, now, "NO_USER");
             throw new ApiException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password.");
         }
         if (user.isLockedAt(now)) {
-            recordEvent(user, LoginOutcome.LOCKED, "LOCKED", normalized, device, now);
+            securityOutcomeService.recordLoginLockout(user.getId(), normalized, device, now);
             throw new ApiException(ErrorCode.ACCOUNT_LOCKED, "Account is temporarily locked. Try again later.");
         }
         if (user.getStatus() == UserStatus.SUSPENDED
                 || user.getStatus() == UserStatus.DISABLED
                 || user.getStatus() == UserStatus.DELETED) {
-            recordEvent(user, LoginOutcome.FAILED, "INACTIVE", normalized, device, now);
+            securityOutcomeService.recordLoginFailure(user.getId(), normalized, device, now, "INACTIVE");
             throw new ApiException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password.");
         }
         if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
-            registerFailure(user, now);
-            recordEvent(user, LoginOutcome.FAILED, "BAD_PASSWORD", normalized, device, now);
+            securityOutcomeService.recordLoginFailure(user.getId(), normalized, device, now, "BAD_PASSWORD");
             throw new ApiException(ErrorCode.INVALID_CREDENTIALS, "Invalid email or password.");
         }
 
@@ -129,13 +131,12 @@ public class LoginService {
         Instant now = clock.instant();
 
         if (user.isLockedAt(now)) {
-            recordEvent(user, LoginOutcome.LOCKED, "LOCKED", user.getEmailNormalized(), device, now);
+            securityOutcomeService.recordLoginLockout(user.getId(), user.getEmailNormalized(), device, now);
             throw new ApiException(ErrorCode.ACCOUNT_LOCKED, "Account is temporarily locked. Try again later.");
         }
 
         if (!mfaService.verifyTotp(userId, code)) {
-            registerFailure(user, now);
-            recordEvent(user, LoginOutcome.FAILED, "BAD_MFA", user.getEmailNormalized(), device, now);
+            securityOutcomeService.recordLoginFailure(user.getId(), user.getEmailNormalized(), device, now, "BAD_MFA");
             throw new ApiException(ErrorCode.INVALID_CREDENTIALS, "Invalid MFA code.");
         }
 
@@ -149,17 +150,6 @@ public class LoginService {
         return new LoginResult(tokens, user.getPublicId(), user.getEmailDisplay(), user.isEmailVerified(), null);
     }
 
-    private void registerFailure(User user, Instant now) {
-        int attempts = user.getFailedLoginCount() + 1;
-        if (attempts >= properties.getLockoutThreshold()) {
-            // Durable lock lives in MySQL; a Redis flush can never unlock the account early.
-            user.setLockedUntil(now.plusSeconds(properties.getLockoutMinutes() * 60L));
-            user.setFailedLoginCount(0);
-        } else {
-            user.setFailedLoginCount(attempts);
-        }
-        userRepository.save(user);
-    }
 
     private void recordEvent(User user, LoginOutcome outcome, String reason,
                              String emailAttempted, DeviceInfo device, Instant now) {

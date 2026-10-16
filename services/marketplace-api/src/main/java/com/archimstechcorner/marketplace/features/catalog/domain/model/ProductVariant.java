@@ -130,6 +130,10 @@ public class ProductVariant {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public BigDecimal getEffectivePrice() {
+        return (salePrice != null && salePrice.compareTo(BigDecimal.ZERO) > 0) ? salePrice : regularPrice;
+    }
+
     public int getStockQuantity() {
         return stockQuantity;
     }

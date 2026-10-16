@@ -75,15 +75,16 @@ public class SellerController {
 
     /** T10: Public seller storefront info (ACTIVE sellers only). */
     @GetMapping("/{publicId}")
-    public SellerSummary publicSeller(@PathVariable String publicId) {
-        Seller seller = sellerService.requireSeller(publicId);  // reuse, status check in view or here
+    public PublicSellerResponse publicSeller(@PathVariable String publicId) {
+        Seller seller = sellerService.requireSeller(publicId);
         if (seller.getStatus() != SellerStatus.ACTIVE) {
-            throw new com.archimstechcorner.marketplace.shared.error.ApiException(com.archimstechcorner.marketplace.shared.error.ErrorCode.NOT_FOUND, "Seller not found.");
+            throw new com.archimstechcorner.marketplace.shared.error.ApiException(
+                    com.archimstechcorner.marketplace.shared.error.ErrorCode.NOT_FOUND, "Seller not found.");
         }
-        return sellerService.listByStatus(SellerStatus.ACTIVE).stream()
-                .filter(s -> s.sellerId().equals(publicId))
-                .findFirst()
-                .orElseThrow(() -> new com.archimstechcorner.marketplace.shared.error.ApiException(com.archimstechcorner.marketplace.shared.error.ErrorCode.NOT_FOUND, "Seller not found."));
+        var store = seller.getStores().isEmpty() ? null : seller.getStores().get(0);
+        String storeName = store != null ? store.getName() : seller.getName();
+        String storeDesc = store != null && store.getDescription() != null ? store.getDescription() : "";
+        return new PublicSellerResponse(seller.getPublicId(), seller.getName(), storeName, storeDesc);
     }
 
     /** Administrator approves a pending seller (PENDING → ACTIVE). Requires {@code seller.approve}. */

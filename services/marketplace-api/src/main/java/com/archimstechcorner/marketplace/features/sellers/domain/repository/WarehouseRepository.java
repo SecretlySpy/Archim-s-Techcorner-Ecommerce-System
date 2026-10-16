@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
     Optional<Warehouse> findByPublicId(String publicId);
+    java.util.List<Warehouse> findByStore_Seller_Id(Long sellerId);
 }

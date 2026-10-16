@@ -138,7 +138,8 @@ export default function ProductDetailPage() {
                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                      {product.images.map((img, i) => (
                        <div key={i} className="product-thumb" style={{ width: 80, height: 80, background: 'var(--glass)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: img.primary ? '2px solid var(--accent)' : '1px solid var(--border)', fontSize: 10, color: 'var(--muted)' }}>
-                         {img.url ? <img src={img.url} alt="" style={{maxWidth:'100%',maxHeight:'100%'}} /> : '📷'}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                         {img.url ? <img src={img.url} alt={product.name ? `${product.name} media ${i + 1}` : "Product media"} style={{maxWidth:'100%',maxHeight:'100%'}} /> : '📷'}
                        </div>
                      ))}
                    </div>

@@ -104,4 +104,5 @@ public class CustomerAddress {
     public void setDefault(boolean aDefault) { isDefault = aDefault; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public Long getVersion() { return version; }
 }

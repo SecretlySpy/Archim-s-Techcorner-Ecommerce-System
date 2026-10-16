@@ -32,17 +32,23 @@ public class InventoryService {
     private final WarehouseRepository warehouseRepository;
     private final ProductVariantRepository variantRepository;
     private final SellerService sellerService;
+    private final com.archimstechcorner.marketplace.features.inventory.domain.repository.InventoryReservationRepository reservationRepository;
+    private final com.archimstechcorner.marketplace.features.sellers.domain.repository.StoreRepository storeRepository;
 
     public InventoryService(InventoryRepository inventoryRepository,
                             InventoryAdjustmentRepository adjustmentRepository,
                             WarehouseRepository warehouseRepository,
                             ProductVariantRepository variantRepository,
-                            SellerService sellerService) {
+                            SellerService sellerService,
+                            com.archimstechcorner.marketplace.features.inventory.domain.repository.InventoryReservationRepository reservationRepository,
+                            com.archimstechcorner.marketplace.features.sellers.domain.repository.StoreRepository storeRepository) {
         this.inventoryRepository = inventoryRepository;
         this.adjustmentRepository = adjustmentRepository;
         this.warehouseRepository = warehouseRepository;
         this.variantRepository = variantRepository;
         this.sellerService = sellerService;
+        this.reservationRepository = reservationRepository;
+        this.storeRepository = storeRepository;
     }
 
     /** Sets on-hand to an absolute value and updates the reorder threshold. Records the delta. */
@@ -124,6 +130,114 @@ public class InventoryService {
                 .toList();
     }
 
+    @Transactional
+    public void reserveStock(Long warehouseId, Long variantId, int quantity) {
+        Inventory inv = inventoryRepository.findByWarehouse_IdAndVariant_IdWithLock(warehouseId, variantId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Inventory bucket not found."));
+        inv.reserve(quantity);
+        inventoryRepository.save(inv);
+    }
+
+    @Transactional
+    public void releaseStock(Long warehouseId, Long variantId, int quantity) {
+        Inventory inv = inventoryRepository.findByWarehouse_IdAndVariant_IdWithLock(warehouseId, variantId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Inventory bucket not found."));
+        inv.release(quantity);
+        inventoryRepository.save(inv);
+    }
+
+    @Transactional
+    public void consumeStock(Long warehouseId, Long variantId, int quantity, Long actorUserId) {
+        Inventory inv = inventoryRepository.findByWarehouse_IdAndVariant_IdWithLock(warehouseId, variantId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Inventory bucket not found."));
+        int before = inv.getOnHandQuantity();
+        inv.consume(quantity);
+        inventoryRepository.save(inv);
+        recordAdjustment(inv, -quantity, "ORDER_FULFILLED", before, inv.getOnHandQuantity(), actorUserId);
+        syncVariantTotal(inv.getVariant());
+    }
+
+    @Transactional
+    public com.archimstechcorner.marketplace.features.inventory.domain.model.InventoryReservation reserveStockForOrder(
+            Long variantId, int quantity, Long orderId, java.time.Instant expiresAt) {
+        if (quantity <= 0) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED, "Quantity must be positive.");
+        }
+        List<Inventory> buckets = inventoryRepository.findByVariant_IdWithLock(variantId);
+        Inventory bucket = null;
+        if (!buckets.isEmpty()) {
+            bucket = buckets.get(0);
+        } else {
+            ProductVariant variant = variantRepository.findById(variantId)
+                    .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Variant not found."));
+            com.archimstechcorner.marketplace.features.sellers.domain.model.Seller seller = variant.getProduct().getSeller();
+            List<Warehouse> warehouses = warehouseRepository.findByStore_Seller_Id(seller.getId());
+            Warehouse wh = warehouses.isEmpty() ? null : warehouses.get(0);
+            if (wh == null) {
+                List<com.archimstechcorner.marketplace.features.sellers.domain.model.Store> stores = storeRepository.findBySeller_Id(seller.getId());
+                com.archimstechcorner.marketplace.features.sellers.domain.model.Store store = stores.isEmpty() ? null : stores.get(0);
+                if (store != null) {
+                    wh = warehouseRepository.save(Warehouse.create(store, "Default Warehouse", "Default", "Default", "NCR", "PH", "1000"));
+                }
+            }
+            if (wh != null) {
+                bucket = Inventory.create(wh, variant);
+                bucket.setOnHandQuantity(variant.getStockQuantity());
+                bucket = inventoryRepository.save(bucket);
+            }
+        }
+
+        if (bucket == null || (bucket.getOnHandQuantity() - bucket.getReservedQuantity()) < quantity) {
+            throw new ApiException(ErrorCode.OUT_OF_STOCK, "Insufficient stock for requested item.");
+        }
+
+        bucket.reserve(quantity);
+        inventoryRepository.save(bucket);
+        syncVariantTotal(bucket.getVariant());
+
+        com.archimstechcorner.marketplace.features.inventory.domain.model.InventoryReservation reservation =
+                com.archimstechcorner.marketplace.features.inventory.domain.model.InventoryReservation.create(bucket, orderId, quantity, expiresAt);
+        return reservationRepository.save(reservation);
+    }
+
+    @Transactional
+    public void releaseStockForOrder(Long orderId) {
+        List<com.archimstechcorner.marketplace.features.inventory.domain.model.InventoryReservation> reservations =
+                reservationRepository.findByOrderId(orderId);
+        for (com.archimstechcorner.marketplace.features.inventory.domain.model.InventoryReservation res : reservations) {
+            if (res.getStatus() == com.archimstechcorner.marketplace.features.inventory.domain.model.ReservationStatus.ACTIVE) {
+                Inventory inv = inventoryRepository.findById(res.getInventory().getId()).orElse(null);
+                if (inv != null) {
+                    inv.release(res.getQuantity());
+                    inventoryRepository.save(inv);
+                    syncVariantTotal(inv.getVariant());
+                }
+                res.setStatus(com.archimstechcorner.marketplace.features.inventory.domain.model.ReservationStatus.RELEASED);
+                reservationRepository.save(res);
+            }
+        }
+    }
+
+    @Transactional
+    public void consumeStockForOrder(Long orderId, Long actorUserId) {
+        List<com.archimstechcorner.marketplace.features.inventory.domain.model.InventoryReservation> reservations =
+                reservationRepository.findByOrderId(orderId);
+        for (com.archimstechcorner.marketplace.features.inventory.domain.model.InventoryReservation res : reservations) {
+            if (res.getStatus() == com.archimstechcorner.marketplace.features.inventory.domain.model.ReservationStatus.ACTIVE) {
+                Inventory inv = inventoryRepository.findById(res.getInventory().getId()).orElse(null);
+                if (inv != null) {
+                    int before = inv.getOnHandQuantity();
+                    inv.consume(res.getQuantity());
+                    inventoryRepository.save(inv);
+                    recordAdjustment(inv, -res.getQuantity(), "ORDER_FULFILLED", before, inv.getOnHandQuantity(), actorUserId);
+                    syncVariantTotal(inv.getVariant());
+                }
+                res.setStatus(com.archimstechcorner.marketplace.features.inventory.domain.model.ReservationStatus.CONSUMED);
+                reservationRepository.save(res);
+            }
+        }
+    }
+
     // --- helpers ---
 
     private Target resolveAndAuthorize(String warehousePublicId, String variantPublicId, Long userId) {
@@ -144,7 +258,7 @@ public class InventoryService {
 
     private Inventory findOrCreateBucket(Target target) {
         return inventoryRepository
-                .findByWarehouse_IdAndVariant_Id(target.warehouse().getId(), target.variant().getId())
+                .findByWarehouse_IdAndVariant_IdWithLock(target.warehouse().getId(), target.variant().getId())
                 .orElseGet(() -> inventoryRepository.save(Inventory.create(target.warehouse(), target.variant())));
     }
 

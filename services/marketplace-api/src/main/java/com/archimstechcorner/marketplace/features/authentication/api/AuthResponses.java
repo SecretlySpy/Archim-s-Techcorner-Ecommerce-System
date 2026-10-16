@@ -19,4 +19,8 @@ public final class AuthResponses {
     /** Returned when MFA is required to complete login. */
     public record MfaChallenge(String challengeToken) {
     }
+
+    /** Returned on successful MFA activation with backup recovery codes. */
+    public record MfaActivated(String message, java.util.List<String> recoveryCodes) {
+    }
 }

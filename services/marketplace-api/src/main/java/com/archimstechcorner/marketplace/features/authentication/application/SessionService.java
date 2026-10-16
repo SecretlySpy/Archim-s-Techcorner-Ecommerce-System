@@ -30,6 +30,7 @@ public class SessionService {
     private final AuthorityService authorityService;
     private final AccessTokenService accessTokenService;
     private final AuditService auditService;
+    private final AuthSecurityOutcomeService securityOutcomeService;
     private final AuthProperties properties;
     private final Clock clock;
 
@@ -38,6 +39,7 @@ public class SessionService {
                           AuthorityService authorityService,
                           AccessTokenService accessTokenService,
                           AuditService auditService,
+                          AuthSecurityOutcomeService securityOutcomeService,
                           AuthProperties properties,
                           Clock clock) {
         this.sessionRepository = sessionRepository;
@@ -45,6 +47,7 @@ public class SessionService {
         this.authorityService = authorityService;
         this.accessTokenService = accessTokenService;
         this.auditService = auditService;
+        this.securityOutcomeService = securityOutcomeService;
         this.properties = properties;
         this.clock = clock;
     }
@@ -63,21 +66,17 @@ public class SessionService {
     public IssuedTokens refresh(String rawRefreshToken, DeviceInfo device) {
         Instant now = clock.instant();
         String hash = SecureTokens.sha256Hex(rawRefreshToken);
-        UserSession current = sessionRepository.findByTokenHash(hash)
+        UserSession current = sessionRepository.findByTokenHashWithLock(hash)
                 .orElseThrow(() -> new ApiException(ErrorCode.SESSION_REVOKED, "Session is no longer valid."));
 
         if (current.getRevokedAt() != null) {
             // The token was already retired — presenting it again means it leaked. Kill the family.
-            revokeFamily(current.getRotationFamilyId(), "REUSE_DETECTED", now);
-            bumpSecurityVersion(current.getUserId());
-            auditService.record("SESSION_REUSE_DETECTED", "SESSION",
-                    current.getPublicId().toString(), current.getUserId(), null);
+            securityOutcomeService.recordSessionReuseAndRevokeFamily(
+                    current.getRotationFamilyId(), current.getUserId(), current.getPublicId().toString(), now);
             throw new ApiException(ErrorCode.SESSION_REVOKED, "Session is no longer valid.");
         }
         if (current.getExpiresAt().isBefore(now)) {
-            current.setRevokedAt(now);
-            current.setRevokeReason("EXPIRED");
-            sessionRepository.save(current);
+            securityOutcomeService.recordSessionExpired(current.getId(), now);
             throw new ApiException(ErrorCode.SESSION_REVOKED, "Session is no longer valid.");
         }
 

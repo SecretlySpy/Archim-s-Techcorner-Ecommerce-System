@@ -61,22 +61,27 @@ export default function HomePage() {
 
   function onSearch(q: string) {
     setQuery(q);
-    setCategoryId(null);
-    setBrandId(null);
     setPage(0);
   }
   function pickCategory(id: number | null) {
     setCategoryId(id);
-    setBrandId(null);
-    setQuery("");
     setPage(0);
   }
   function pickBrand(id: number | null) {
     setBrandId(id);
-    setCategoryId(null);
-    setQuery("");
     setPage(0);
   }
+
+  // Synchronize active filters with the URL without full reload
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (categoryId != null) params.set("categoryId", String(categoryId));
+    if (brandId != null) params.set("brandId", String(brandId));
+    if (page > 0) params.set("page", String(page));
+    const newRelativePathQuery = window.location.pathname + (params.toString() ? "?" + params.toString() : "");
+    window.history.replaceState(null, "", newRelativePathQuery);
+  }, [query, categoryId, brandId, page]);
 
   return (
     <>

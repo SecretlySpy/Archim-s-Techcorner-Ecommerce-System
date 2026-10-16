@@ -15,3 +15,8 @@ export const registerSchema = z.object({
   displayName: z.string().min(2, "Too short").max(60),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
+
+export const mfaChallengeSchema = z.object({
+  code: z.string().min(6, "Enter the 6-digit code or backup recovery code").max(20),
+});
+export type MfaChallengeInput = z.infer<typeof mfaChallengeSchema>;

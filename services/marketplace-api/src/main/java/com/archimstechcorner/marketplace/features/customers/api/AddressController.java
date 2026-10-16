@@ -5,6 +5,7 @@ import com.archimstechcorner.marketplace.features.customers.domain.model.Custome
 import com.archimstechcorner.marketplace.shared.security.AuthenticatedUser;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -52,9 +53,46 @@ public class AddressController {
         return toResponse(addressService.getAddress(principal.userId(), publicId));
     }
 
+    @PutMapping("/{publicId}")
+    public AddressResponse update(@PathVariable String publicId,
+                                  @Valid @RequestBody UpdateAddressRequest req,
+                                  @AuthenticationPrincipal AuthenticatedUser principal) {
+        CustomerAddress addr = addressService.updateAddress(
+                principal.userId(),
+                publicId,
+                req.expectedVersion(),
+                req.recipientName(),
+                req.phone(),
+                req.line1(),
+                req.line2(),
+                req.city(),
+                req.state(),
+                req.postalCode(),
+                req.country(),
+                req.isDefault()
+        );
+        return toResponse(addr);
+    }
+
+    @DeleteMapping("/{publicId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable String publicId,
+                       @RequestParam(required = false) Long expectedVersion,
+                       @AuthenticationPrincipal AuthenticatedUser principal) {
+        addressService.deleteAddress(principal.userId(), publicId, expectedVersion);
+    }
+
+    @PutMapping("/{publicId}/default")
+    public AddressResponse setDefault(@PathVariable String publicId,
+                                      @RequestParam(required = false) Long expectedVersion,
+                                      @AuthenticationPrincipal AuthenticatedUser principal) {
+        return toResponse(addressService.setDefault(principal.userId(), publicId, expectedVersion));
+    }
+
     private AddressResponse toResponse(CustomerAddress a) {
         return new AddressResponse(
                 a.getPublicId().toString(),
+                a.getVersion(),
                 a.getAddressType(),
                 a.getRecipientName(),
                 a.getPhone(),
@@ -81,8 +119,22 @@ public class AddressController {
             boolean isDefault
     ) {}
 
+    public record UpdateAddressRequest(
+            Long expectedVersion,
+            String recipientName,
+            String phone,
+            String line1,
+            String line2,
+            String city,
+            String state,
+            String postalCode,
+            String country,
+            Boolean isDefault
+    ) {}
+
     public record AddressResponse(
             String id,
+            Long version,
             String addressType,
             String recipientName,
             String phone,

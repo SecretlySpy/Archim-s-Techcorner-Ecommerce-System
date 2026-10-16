@@ -50,16 +50,25 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
 }
 
 export const api = {
-  post: <T>(path: string, body: unknown) => request<T>(path, { method: "POST", body: JSON.stringify(body) }),
-  get: <T>(path: string) => request<T>(path, { method: "GET" }),
-  put: <T>(path: string, body: unknown) => request<T>(path, { method: "PUT", body: JSON.stringify(body) }),
-  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  post: <T>(path: string, body: unknown, options?: { headers?: Record<string, string> }) =>
+    request<T>(path, { method: "POST", body: JSON.stringify(body), headers: options?.headers }),
+  get: <T>(path: string, options?: { headers?: Record<string, string> }) =>
+    request<T>(path, { method: "GET", headers: options?.headers }),
+  put: <T>(path: string, body: unknown, options?: { headers?: Record<string, string> }) =>
+    request<T>(path, { method: "PUT", body: JSON.stringify(body), headers: options?.headers }),
+  delete: <T>(path: string, options?: { headers?: Record<string, string> }) =>
+    request<T>(path, { method: "DELETE", headers: options?.headers }),
 };
 
 /** Address helpers */
 export const addressesApi = {
   list: () => api.get<Address[]>("/api/v1/addresses"),
   create: (body: any) => api.post<Address>("/api/v1/addresses", body),
+  update: (id: string, body: any) => api.put<Address>(`/api/v1/addresses/${id}`, body),
+  delete: (id: string, expectedVersion?: number) =>
+    api.delete<void>(`/api/v1/addresses/${id}${expectedVersion !== undefined ? `?expectedVersion=${expectedVersion}` : ""}`),
+  setDefault: (id: string, expectedVersion?: number) =>
+    api.put<Address>(`/api/v1/addresses/${id}/default${expectedVersion !== undefined ? `?expectedVersion=${expectedVersion}` : ""}`, {}),
 };
 
 /** T08 autocomplete helper */
@@ -227,3 +236,70 @@ export interface Address {
   country: string;
   isDefault: boolean;
 }
+
+export interface CheckoutQuoteResponse {
+  quoteId: string;
+  subtotal: number;
+  shippingFee: number;
+  taxAmount: number;
+  totalAmount: number;
+  currency: string;
+  expiresAt: string;
+  items: Array<{
+    variantId: number;
+    variantPublicId: string;
+    sku: string;
+    productName: string;
+    variantName: string;
+    unitPrice: number;
+    quantity: number;
+    lineTotal: number;
+    sellerId: number;
+    sellerName: string;
+  }>;
+}
+
+export interface CheckoutResultResponse {
+  orderId: string;
+  status: string;
+  total: number;
+  redirectUrl: string | null;
+}
+
+export interface OrderSummary {
+  id: string;
+  totalAmount: number;
+  currencyCode: string;
+  status: string;
+  createdAt: string;
+}
+
+export const checkoutApi = {
+  createQuote: (shippingAddressId: string, shippingMethod = "standard") =>
+    api.post<CheckoutQuoteResponse>("/api/v1/checkout/quotes", { shippingAddressId, shippingMethod }),
+  submitCheckout: (quoteId: string, idempotencyKey: string, paymentMethod = "MOCK_HOSTED", baseUrl?: string) =>
+    api.post<CheckoutResultResponse>(
+      "/api/v1/checkout",
+      { quoteId, idempotencyKey, paymentMethod, baseUrl },
+      { headers: { "Idempotency-Key": idempotencyKey } }
+    ),
+};
+
+export interface ShipmentSummary {
+  id: string;
+  sellerOrderId: string;
+  courierCode: string;
+  trackingNumber: string;
+  status: string;
+  shippedAt: string;
+  deliveredAt: string | null;
+}
+
+export const ordersApi = {
+  list: () => api.get<OrderSummary[]>("/api/v1/orders"),
+  get: (orderId: string) => api.get<any>(`/api/v1/orders/${orderId}`),
+  getShipments: (orderId: string) => api.get<ShipmentSummary[]>(`/api/v1/orders/${orderId}/shipments`),
+  requestRefund: (orderId: string, body: { requestedAmount: number; reason: string; sellerOrderId?: string }) =>
+    api.post<any>(`/api/v1/orders/${orderId}/refunds`, body),
+};
+

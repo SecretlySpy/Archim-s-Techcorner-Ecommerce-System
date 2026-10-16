@@ -43,7 +43,7 @@ public class AddressService {
         if (isDefault) {
             addressRepository.findByUserIdAndIsDefaultTrueAndAddressType(userId, type).ifPresent(prev -> {
                 prev.setDefault(false);
-                addressRepository.save(prev);
+                addressRepository.saveAndFlush(prev);
             });
         }
 
@@ -60,5 +60,67 @@ public class AddressService {
         return addr;
     }
 
-    // Additional methods for update/delete can be added similarly
+    @Transactional
+    public CustomerAddress updateAddress(Long userId, String publicId, Long expectedVersion,
+                                         String name, String phone, String line1, String line2,
+                                         String city, String state, String postal, String country,
+                                         Boolean isDefault) {
+        CustomerAddress addr = getAddress(userId, publicId);
+        if (expectedVersion != null && !expectedVersion.equals(addr.getVersion())) {
+            throw new ApiException(ErrorCode.IDEMPOTENCY_CONFLICT, "Address was modified by another request. Stale version.");
+        }
+
+        if (name != null && !name.isBlank()) addr.setRecipientName(name);
+        if (phone != null) addr.setPhone(phone);
+        if (line1 != null && !line1.isBlank()) addr.setLine1(line1);
+        if (line2 != null) addr.setLine2(line2);
+        if (city != null && !city.isBlank()) addr.setCity(city);
+        if (state != null) addr.setState(state);
+        if (postal != null && !postal.isBlank()) addr.setPostalCode(postal);
+        if (country != null && !country.isBlank()) addr.setCountry(country);
+
+        if (isDefault != null && isDefault && !addr.isDefault()) {
+            addressRepository.findByUserIdAndIsDefaultTrueAndAddressType(userId, addr.getAddressType())
+                    .ifPresent(prev -> {
+                        if (!prev.getId().equals(addr.getId())) {
+                            prev.setDefault(false);
+                            addressRepository.saveAndFlush(prev);
+                        }
+                    });
+            addr.setDefault(true);
+        } else if (isDefault != null && !isDefault) {
+            addr.setDefault(false);
+        }
+
+        return addressRepository.save(addr);
+    }
+
+    @Transactional
+    public void deleteAddress(Long userId, String publicId, Long expectedVersion) {
+        CustomerAddress addr = getAddress(userId, publicId);
+        if (expectedVersion != null && !expectedVersion.equals(addr.getVersion())) {
+            throw new ApiException(ErrorCode.IDEMPOTENCY_CONFLICT, "Address was modified by another request. Stale version.");
+        }
+        addressRepository.delete(addr);
+    }
+
+    @Transactional
+    public CustomerAddress setDefault(Long userId, String publicId, Long expectedVersion) {
+        CustomerAddress addr = getAddress(userId, publicId);
+        if (expectedVersion != null && !expectedVersion.equals(addr.getVersion())) {
+            throw new ApiException(ErrorCode.IDEMPOTENCY_CONFLICT, "Address was modified by another request. Stale version.");
+        }
+        if (!addr.isDefault()) {
+            addressRepository.findByUserIdAndIsDefaultTrueAndAddressType(userId, addr.getAddressType())
+                    .ifPresent(prev -> {
+                        if (!prev.getId().equals(addr.getId())) {
+                            prev.setDefault(false);
+                            addressRepository.saveAndFlush(prev);
+                        }
+                    });
+            addr.setDefault(true);
+            return addressRepository.save(addr);
+        }
+        return addr;
+    }
 }

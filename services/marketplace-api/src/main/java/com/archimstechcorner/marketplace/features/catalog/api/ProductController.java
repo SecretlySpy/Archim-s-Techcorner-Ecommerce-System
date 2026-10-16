@@ -39,28 +39,40 @@ public class ProductController {
     @PreAuthorize("isAuthenticated()") // ownership (caller must belong to the seller) is enforced in the service
     public ProductResponse createProduct(@Valid @RequestBody CreateProductRequest request,
                                          @AuthenticationPrincipal AuthenticatedUser principal) {
-        Product product = productService.createProduct(
+        List<ProductService.VariantInput> variants = (request.variants() == null) ? List.of() :
+                request.variants().stream()
+                        .map(v -> new ProductService.VariantInput(
+                                v.sku(),
+                                v.name(),
+                                v.regularPrice(),
+                                null,
+                                v.stockQuantity(),
+                                v.attributes()
+                        ))
+                        .toList();
+
+        List<ProductService.SpecInput> specs = (request.specifications() == null) ? List.of() :
+                request.specifications().stream()
+                        .map(s -> new ProductService.SpecInput(s.name(), s.value(), s.displayOrder()))
+                        .toList();
+
+        List<ProductService.ImageInput> images = (request.images() == null) ? List.of() :
+                request.images().stream()
+                        .map(img -> new ProductService.ImageInput(img.url(), img.isPrimary(), img.displayOrder()))
+                        .toList();
+
+        Product product = productService.createProductAggregate(
                 request.sellerPublicId(),
                 request.categoryId(),
                 request.brandId(),
                 request.name(),
                 request.slug(),
                 request.description(),
+                variants,
+                specs,
+                images,
                 principal.userId()
         );
-
-        if (request.variants() != null) {
-            for (VariantRequest variantReq : request.variants()) {
-                productService.addVariant(
-                        product.getPublicId().toString(),
-                        variantReq.sku(),
-                        variantReq.name(),
-                        variantReq.regularPrice(),
-                        variantReq.stockQuantity(),
-                        variantReq.attributes()
-                );
-            }
-        }
 
         return mapToResponse(productService.getProduct(product.getPublicId().toString()));
     }
@@ -91,8 +103,30 @@ public class ProductController {
             @RequestParam(defaultValue = "24") int size,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long brandId,
-            @RequestParam(required = false) String q) {
-        return productService.getFeed(page, size, categoryId, brandId, q);
+            @RequestParam(required = false) String sellerPublicId,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false, defaultValue = "newest") String sort) {
+        return productService.getFeed(page, size, categoryId, brandId, sellerPublicId, minPrice, maxPrice, q, sort);
+    }
+
+    @PostMapping("/{publicId}/specifications")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("isAuthenticated()")
+    public void addSpecification(@PathVariable String publicId,
+                                 @Valid @RequestBody AddSpecificationRequest req,
+                                 @AuthenticationPrincipal AuthenticatedUser principal) {
+        productService.addSpecification(publicId, req.name(), req.value(), req.displayOrder(), principal.userId());
+    }
+
+    @PostMapping("/{publicId}/images")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("isAuthenticated()")
+    public void addImage(@PathVariable String publicId,
+                         @Valid @RequestBody AddImageRequest req,
+                         @AuthenticationPrincipal AuthenticatedUser principal) {
+        productService.addImage(publicId, req.url(), req.isPrimary(), req.displayOrder(), principal.userId());
     }
 
     /** T08: Autocomplete suggestions (public, ACTIVE, limited). */
@@ -168,7 +202,9 @@ public class ProductController {
             @NotBlank String name,
             @NotBlank String slug,
             String description,
-            List<VariantRequest> variants
+            List<VariantRequest> variants,
+            List<AddSpecificationRequest> specifications,
+            List<AddImageRequest> images
     ) {}
 
     public record VariantRequest(
@@ -206,4 +242,16 @@ public class ProductController {
 
     public record ProductImageResponse(String url, boolean primary, int displayOrder) {}
     public record ProductSpecResponse(String name, String value, int displayOrder) {}
+
+    public record AddSpecificationRequest(
+            @NotBlank String name,
+            @NotBlank String value,
+            int displayOrder
+    ) {}
+
+    public record AddImageRequest(
+            @NotBlank String url,
+            boolean isPrimary,
+            int displayOrder
+    ) {}
 }

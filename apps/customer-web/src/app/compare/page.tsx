@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api, type ProductResponse } from "@/lib/api";
@@ -12,10 +12,10 @@ function peso(n: number): string {
 /** T09: Basic comparison page. Supports ?ids=ID1,ID2 (comma sep). Fetches details, shows side-by-side table.
  * States: loading, empty, error. Uses existing product data + specs (from T06).
  */
-export default function ComparePage() {
+function CompareContent() {
   const params = useSearchParams();
   const idsParam = params.get("ids") || "";
-  const ids = idsParam.split(",").filter(Boolean);
+  const ids = useMemo(() => idsParam.split(",").filter(Boolean), [idsParam]);
 
   const [products, setProducts] = useState<ProductResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +40,7 @@ export default function ComparePage() {
       })
       .catch(() => setError("Failed to load comparison data."))
       .finally(() => setLoading(false));
-  }, [idsParam]);
+  }, [ids]);
 
   if (loading) {
     return <div className="container"><div className="loading-center"><span className="spinner" /></div></div>;
@@ -112,5 +112,13 @@ export default function ComparePage() {
 
       <p className="muted" style={{ marginTop: 16 }}>Compare up to 4 by visiting product pages and manually constructing ?ids= or extending with add-to-compare.</p>
     </div>
+  );
+}
+
+export default function ComparePage() {
+  return (
+    <Suspense fallback={<div className="container"><div className="loading-center"><span className="spinner" /></div></div>}>
+      <CompareContent />
+    </Suspense>
   );
 }

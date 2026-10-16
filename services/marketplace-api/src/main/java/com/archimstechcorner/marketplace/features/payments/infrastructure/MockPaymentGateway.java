@@ -24,7 +24,9 @@ public class MockPaymentGateway implements PaymentGateway {
 
     @Override
     public PaymentResult verifyCallback(String payload, String signature) {
-        // Mock always succeeds for valid looking payload
+        if ("invalid_signature".equalsIgnoreCase(signature)) {
+            return new PaymentResult(null, "FAILED", BigDecimal.ZERO, false, payload);
+        }
         if (payload == null || payload.isEmpty()) {
             return new PaymentResult(null, "FAILED", BigDecimal.ZERO, false, payload);
         }

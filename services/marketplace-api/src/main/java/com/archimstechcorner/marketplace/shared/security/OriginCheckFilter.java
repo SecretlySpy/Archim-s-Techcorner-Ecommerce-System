@@ -38,6 +38,11 @@ public class OriginCheckFilter extends OncePerRequestFilter {
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
+        if (request.getRequestURI().startsWith("/api/v1/payments/webhooks")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         if (MUTATING.contains(request.getMethod())) {
             String origin = request.getHeader("Origin");
             if (origin != null && !properties.getAllowedOrigins().contains(origin)) {

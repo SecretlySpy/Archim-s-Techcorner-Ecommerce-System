@@ -34,7 +34,8 @@ public class SecurityConfig {
             "/api/v1/auth/email/verify",
             "/api/v1/auth/email/verify/resend",
             "/api/v1/auth/password/forgot",
-            "/api/v1/auth/password/reset"
+            "/api/v1/auth/password/reset",
+            "/api/v1/payments/webhooks/**"
     };
 
     private static final String[] PUBLIC_GET = {
@@ -67,7 +68,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/catalog/categories",
                                 "/api/v1/catalog/brands",
-                                "/api/v1/catalog/products/*").permitAll()
+                                "/api/v1/catalog/products/**",
+                                "/api/v1/sellers/*").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(authEntryPoint)

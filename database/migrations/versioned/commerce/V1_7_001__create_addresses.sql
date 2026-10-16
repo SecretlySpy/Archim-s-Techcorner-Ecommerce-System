@@ -16,11 +16,13 @@ CREATE TABLE customer_addresses (
     postal_code VARCHAR(20) NOT NULL,
     country VARCHAR(2) NOT NULL DEFAULT 'PH',
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    default_flag TINYINT GENERATED ALWAYS AS (IF(is_default, 1, NULL)) VIRTUAL,
+    version BIGINT NOT NULL DEFAULT 0,
     created_at DATETIME(6) NOT NULL,
     updated_at DATETIME(6) NOT NULL,
 
     CONSTRAINT fk_customer_address_user FOREIGN KEY (user_id) REFERENCES users (id),
-    CONSTRAINT uk_customer_address_default UNIQUE (user_id, address_type, is_default)
+    CONSTRAINT uk_customer_address_default UNIQUE (user_id, address_type, default_flag)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_customer_address_user ON customer_addresses (user_id);

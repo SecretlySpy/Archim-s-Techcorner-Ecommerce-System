@@ -14,6 +14,7 @@ import com.archimstechcorner.marketplace.shared.security.AuthCookieFactory;
 import com.archimstechcorner.marketplace.shared.support.SecureTokens;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -111,10 +112,10 @@ public class AuthController {
 
     @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
     @PostMapping("/mfa/totp/activate")
-    public AuthResponses.Message activateTotp(@org.springframework.security.core.annotation.AuthenticationPrincipal com.archimstechcorner.marketplace.shared.security.AuthenticatedUser user, 
+    public AuthResponses.MfaActivated activateTotp(@org.springframework.security.core.annotation.AuthenticationPrincipal com.archimstechcorner.marketplace.shared.security.AuthenticatedUser user, 
                                               @Valid @RequestBody AuthRequests.MfaActivate request) {
-        mfaService.activateTotp(user.userId(), request.code());
-        return new AuthResponses.Message("TOTP activated successfully.");
+        List<String> recoveryCodes = mfaService.activateTotp(user.userId(), request.code());
+        return new AuthResponses.MfaActivated("TOTP activated successfully. Save your recovery codes in a secure location.", recoveryCodes);
     }
 
     @PostMapping("/token/refresh")

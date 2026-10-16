@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface ProductVariantRepository extends JpaRepository<ProductVariant, Long> {
     Optional<ProductVariant> findByPublicId(UUID publicId);
+    Optional<ProductVariant> findBySku(String sku);
 }
